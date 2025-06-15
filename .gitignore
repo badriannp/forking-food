@@ -1,0 +1,38 @@
+# Flutter/Dart/Pub related
+.dart_tool/
+.packages
+.pub-cache/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.flutter-versions
+
+# Platform folders (generated or ephemeral files)
+ios/Pods/
+ios/Runner.xcworkspace/
+ios/.symlinks/
+ios/Flutter/ephemeral/
+android/.gradle/
+android/captures/
+android/local.properties
+macos/Flutter/ephemeral/
+linux/flutter/ephemeral/
+windows/flutter/ephemeral/
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# System files
+.DS_Store
+
+# Logs
+*.log
+project_context.md
+
+# Firebase iOS config
+ios/Runner/GoogleService-Info.plist
+
+# Firebase Android config
+android/app/google-services.json
