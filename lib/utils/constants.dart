@@ -12,6 +12,7 @@ class AppColors {
   static const onSecondary = Color(0xFFF7F7F5);
   static const onBackground = Color(0xFF101010);
   static const onSurface = Color(0xFF101010);
+  static const facebookBlue = Color(0xFF1877F2);
 
   // Accente suplimentare
   static const accent = Color(0xFFFFC94D);      // Galben mai deschis/accent

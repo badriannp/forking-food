@@ -1,10 +1,16 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'screens/auth_screen.dart';
+import 'package:flutter/services.dart';
+// import 'screens/auth_screen.dart';
+import 'screens/welcome_screen.dart';
 import 'utils/constants.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
   runApp(const MyApp());
 }
 
@@ -20,7 +26,7 @@ class MyApp extends StatelessWidget {
           return MaterialApp(
             title: 'Forking',
             debugShowCheckedModeBanner: false,
-            home: const AuthScreen(),
+            home: const WelcomeScreen(),
             theme: ThemeData(
               colorScheme: ColorScheme(
                 brightness: Brightness.light,
@@ -30,15 +36,15 @@ class MyApp extends StatelessWidget {
                 onSecondary: AppColors.onSecondary,
                 error: AppColors.error,
                 onError: AppColors.onPrimary,
-                surface: AppColors.background,
+                surface: AppColors.surface,
                 onSurface: AppColors.onSurface,
                 tertiary: AppColors.accent,
                 onTertiary: AppColors.onPrimary,
               ),
-              scaffoldBackgroundColor: AppColors.background,
+              scaffoldBackgroundColor: AppColors.surface,
               appBarTheme: const AppBarTheme(
                 backgroundColor: Colors.transparent,
-                foregroundColor: Colors.black87,
+                foregroundColor: AppColors.onSurface,
                 elevation: 0,
               ),
               elevatedButtonTheme: ElevatedButtonThemeData(
