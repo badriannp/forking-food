@@ -18,6 +18,7 @@ class MyApp extends StatelessWidget {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done) {
           return MaterialApp(
+            title: 'Forking',
             debugShowCheckedModeBanner: false,
             home: const AuthScreen(),
             theme: ThemeData(
