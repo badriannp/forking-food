@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:forking/models/recipe.dart';
-import 'package:forking/utils/constants.dart';
 
 class RecipeCard extends StatelessWidget {
   final Recipe recipe;

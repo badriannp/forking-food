@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:forking/widgets/recipe_card.dart';
 import 'package:forking/models/recipe.dart';
 import 'package:swipe_cards/swipe_cards.dart';
 
@@ -13,7 +12,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   List<SwipeItem> _swipeItems = [];
   MatchEngine? _matchEngine;
-  List<Recipe> recipes = []; // TODO: Load from Firestore
+  List<Recipe> recipes = []; 
 
   @override
   void initState() {
@@ -109,10 +108,25 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 0,
       ),
       body: recipes.isEmpty
-          ? const Center(
-              child: Text(
-                'No recipes available',
-                style: TextStyle(fontSize: 18),
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.restaurant_menu,
+                    size: 64,
+                    color: Colors.grey,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    "You ate them all!",
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
               ),
             )
           : _matchEngine == null
@@ -120,10 +134,98 @@ class _HomeScreenState extends State<HomeScreen> {
               : SwipeCards(
                   matchEngine: _matchEngine!,
                   itemBuilder: (BuildContext context, int index) {
-                    return RecipeCard(recipe: _swipeItems[index].content as Recipe);
+                    final recipe = _swipeItems[index].content as Recipe;
+                    return Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha(10),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Stack(
+                          children: [
+                            // Recipe Image
+                            Image.network(
+                              recipe.imageUrl,
+                              width: double.infinity,
+                              height: double.infinity,
+                              fit: BoxFit.cover,
+                            ),
+                            // Gradient Overlay
+                            Positioned.fill(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.transparent,
+                                      Colors.black.withOpacity(0.7),
+                                    ],
+                                    stops: const [0.6, 1.0],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // Recipe Info
+                            Positioned(
+                              left: 16,
+                              right: 16,
+                              bottom: 16,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    recipe.title,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    recipe.description,
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.9),
+                                      fontSize: 16,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.person_outline,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'by ${recipe.creatorName}',
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.9),
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
                   },
                   onStackFinished: () {
-                    // Handle when all cards are swiped
                     setState(() {
                       recipes = [];
                     });
@@ -131,7 +233,32 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemChanged: (SwipeItem item, int index) {
                     // Handle when a card is swiped
                   },
+                  upSwipeAllowed: false,
                   fillSpace: true,
+                  likeTag: Container(
+                    margin: const EdgeInsets.all(15.0),
+                    padding: const EdgeInsets.fromLTRB(22.0, 12.0, 22.0, 12.0),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.green, width: 2.0),
+                      borderRadius: BorderRadius.circular(5.0),
+                    ),
+                    child: const Text(
+                      "LIKE",
+                      style: TextStyle(color: Colors.green, fontSize: 24.0),
+                    ),
+                  ),
+                  nopeTag: Container(
+                    margin: const EdgeInsets.all(15.0),
+                    padding: const EdgeInsets.fromLTRB(22.0, 12.0, 22.0, 12.0),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.red, width: 2.0),
+                      borderRadius: BorderRadius.circular(5.0),
+                    ),
+                    child: const Text(
+                      "NOPE",
+                      style: TextStyle(color: Colors.red, fontSize: 24.0),
+                    ),
+                  ),
                 ),
     );
   }
