@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:forking/screens/forgot_password_screen.dart';
 import '../services/auth_service.dart';
 import 'register_screen.dart';
+import 'main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -61,7 +62,10 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Login successful!')),
       );
-      Navigator.of(context).pop(); // Return to previous screen after successful login
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+        (route) => false,
+      );
     } on Exception catch (e) {
       if (!mounted) return;
       String message = e.toString();

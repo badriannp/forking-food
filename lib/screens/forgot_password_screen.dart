@@ -11,7 +11,6 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
-  bool _sent = false;
 
   @override
   void dispose() {
@@ -32,9 +31,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   Future<void> _handleSend() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() { _sent = true; });
-    // TODO: Adaugă logica de trimitere email resetare parolă
-    await Future.delayed(const Duration(seconds: 1)); // simulare delay
+    await Future.delayed(const Duration(seconds: 1));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('If an account exists for this email, you will receive a password reset link.')),
