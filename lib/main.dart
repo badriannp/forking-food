@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
             debugShowCheckedModeBanner: false,
             home: const WelcomeScreen(),
             theme: ThemeData(
-              colorScheme: ColorScheme(
+              colorScheme: const ColorScheme(
                 brightness: Brightness.light,
                 primary: AppColors.carrotYellow,
                 onPrimary: AppColors.onPrimary,
@@ -61,24 +61,24 @@ class MyApp extends StatelessWidget {
                   foregroundColor: AppColors.darkGreen,
                 ),
               ),
-              inputDecorationTheme: InputDecorationTheme(
-                border: const OutlineInputBorder(
+              inputDecorationTheme: const InputDecorationTheme(
+                border: OutlineInputBorder(
                   borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderSide: BorderSide(color: AppColors.border),
-                  borderRadius: const BorderRadius.all(Radius.circular(12)),
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderSide: BorderSide(color: AppColors.carrotYellow, width: 2),
-                  borderRadius: const BorderRadius.all(Radius.circular(12)),
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
               ),
               useMaterial3: true,
             ),
           );
         }
-        // Loader cât timp Firebase se inițializează
+        // Loader while Firebase is initializing
         return const MaterialApp(
           home: Scaffold(
             body: Center(child: CircularProgressIndicator()),

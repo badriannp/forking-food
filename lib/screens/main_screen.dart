@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:forking/screens/home_screen.dart';
 import 'package:forking/screens/add_recipe_screen.dart';
 import 'package:forking/screens/profile_screen.dart';
@@ -27,6 +28,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
     return Scaffold(
       body: _screens[_selectedIndex],
       bottomNavigationBar: NavigationBar(
@@ -34,6 +36,7 @@ class _MainScreenState extends State<MainScreen> {
         onDestinationSelected: _onItemTapped,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
         indicatorColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
