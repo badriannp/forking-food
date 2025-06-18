@@ -30,28 +30,42 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
     return Scaffold(
-      body: _screens[_selectedIndex],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: _onItemTapped,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
-        indicatorColor: Theme.of(context).colorScheme.primary,
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
+      body: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: NavigationBar(
+              selectedIndex: _selectedIndex,
+              onDestinationSelected: _onItemTapped,
+              labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
+              indicatorColor: Theme.of(context).colorScheme.primary,
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home),
+                  label: 'Home',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.add_circle_outline),
+                  selectedIcon: Icon(Icons.add_circle),
+                  label: 'Add',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.person_outline),
+                  selectedIcon: Icon(Icons.person),
+                  label: 'Profile',
+                ),
+              ],
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.add_circle_outline),
-            selectedIcon: Icon(Icons.add_circle),
-            label: 'Add',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Me',
+          Padding(
+            padding: EdgeInsets.only(
+              bottom: 80.0 + MediaQuery.of(context).padding.bottom,
+            ),
+            child: _screens[_selectedIndex],
           ),
         ],
       ),

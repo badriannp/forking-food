@@ -28,7 +28,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           fit: StackFit.expand,
           children: [
             Image.asset('assets/forking-bg.jpg', fit: BoxFit.cover),
-            Container(color: Color(0x80000000)),
+            Container(color: const Color(0x80000000)),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: LayoutBuilder(
@@ -62,7 +62,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                   letterSpacing: 0.2,
                               ),
                             ),
-                            SizedBox(height: 144),
+                            const SizedBox(height: 144),
                             
                             _LoginButton(
                               icon: SvgPicture.asset(
@@ -77,7 +77,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 // Google login logic
                               },
                             ),
-                            SizedBox(height: 16),
+                            const SizedBox(height: 16),
                             _LoginButton(
                               icon: Icon(Icons.facebook, color: Theme.of(context).colorScheme.onPrimary, size: 20),
                               text: 'Continue with Facebook',
@@ -87,7 +87,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 // Facebook login logic
                               },
                             ),
-                            SizedBox(height: 16),
+                            const SizedBox(height: 16),
                             Row(
                               children: [
                                 Expanded(child: Divider(thickness: 1, indent: 12, color: Theme.of(context).colorScheme.onPrimary.withAlpha(180), endIndent: 12)),
@@ -95,7 +95,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 Expanded(child: Divider(thickness: 1, indent: 12, color: Theme.of(context).colorScheme.onPrimary.withAlpha(180), endIndent: 12)),
                               ],
                             ),
-                            SizedBox(height: 16),
+                            const SizedBox(height: 16),
                             _LoginButton(
                               icon: Icon(Icons.email, color: Theme.of(context).colorScheme.onSurface.withAlpha(220)),
                               text: 'Log in using your email',
@@ -108,7 +108,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 );
                               },
                             ),
-                            SizedBox(height: 32),
+                            const SizedBox(height: 32),
                             RichText(
                               textAlign: TextAlign.center,
                               text: TextSpan(
