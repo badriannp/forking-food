@@ -3,21 +3,16 @@ import 'package:forking/models/recipe.dart';
 
 class RecipeCard extends StatelessWidget {
   final Recipe recipe;
+  final BoxConstraints constraints;
 
   const RecipeCard({
     super.key,
     required this.recipe,
+    required this.constraints,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Calculăm înălțimea cardului în funcție de ecran
-    // Scădem status bar, AppBar și bottom navigation bar
-    final cardHeight = MediaQuery.of(context).size.height -
-        MediaQuery.of(context).padding.top -
-        kToolbarHeight -
-        (145.0 + MediaQuery.of(context).padding.bottom);
-
     return Card(
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
@@ -32,8 +27,8 @@ class RecipeCard extends StatelessWidget {
             Stack(
               children: [
                 SizedBox(
-                  height: cardHeight,
-                  width: double.infinity,
+                  height: constraints.maxHeight,
+                  width: constraints.maxWidth,
                   child: Image.network(
                     recipe.imageUrl,
                     fit: BoxFit.cover,
@@ -52,7 +47,7 @@ class RecipeCard extends StatelessWidget {
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          Colors.black.withValues(alpha: 0.8),
+                          Colors.black.withOpacity(0.8),
                         ],
                       ),
                     ),
@@ -65,7 +60,6 @@ class RecipeCard extends StatelessWidget {
                   bottom: 16,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    spacing: 8,
                     children: [
                       Text(
                         recipe.title,
@@ -74,18 +68,19 @@ class RecipeCard extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
                           Icon(
                             Icons.person_outline,
                             size: 16,
-                            color: Colors.white.withValues(alpha: 0.9),
+                            color: Colors.white.withOpacity(0.9),
                           ),
                           const SizedBox(width: 4),
                           Text(
                             recipe.creatorName,
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.white.withValues(alpha: 0.9),
+                              color: Colors.white.withOpacity(0.9),
                             ),
                           ),
                         ],
