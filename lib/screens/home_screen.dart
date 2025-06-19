@@ -21,9 +21,15 @@ class _HomeScreenState extends State<HomeScreen> {
       id: '1',
       title: 'Spaghete Carbonara',
       imageUrl: 'https://images.unsplash.com/photo-1612874742237-6526221588e3',
-      description: 'Rețetă clasică de paste carbonara',
-      ingredients: ['paste', 'ou', 'pecorino'],
-      instructions: ['Fierbe pastele', 'Amestecă ouăle'],
+      description: 'Rețetă clasică de paste carbonara cu ou și pecorino. O rețetă autentică italiană care se prepară rapid și este delicioasă. Perfect pentru o cină în familie sau cu prietenii. Secretul este în calitatea ingredientelor și în tehnica de preparare.',
+      ingredients: ['paste', 'ou', 'pecorino', 'guanciale', 'piper negru', 'sare'],
+      instructions: [
+        'Fierbe pastele în apă cu sare conform instrucțiunilor de pe pachet',
+        'Amestecă ouăle cu pecorino și piper',
+        'Prăjește guanciale până devine crocant',
+        'Amestecă pastele cu sosul de ou și guanciale',
+        'Servește imediat cu pecorino ras și piper negru'
+      ],
       creatorId: 'user1',
       creatorName: 'Chef John',
       createdAt: DateTime.now(),
@@ -32,9 +38,16 @@ class _HomeScreenState extends State<HomeScreen> {
       id: '2',
       title: 'Pizza Margherita',
       imageUrl: 'https://images.unsplash.com/photo-1598023696416-0193a0bcd302',
-      description: 'Pizza simplă și delicioasă',
-      ingredients: ['aluat', 'roșii', 'mozzarella'],
-      instructions: ['Întinde aluatul', 'Adaugă sosul'],
+      description: 'Pizza simplă și delicioasă în stil napoletan. Cu blat subțire și crocant, sos de roșii proaspete San Marzano, mozzarella di bufala și busuioc. Coaptă la temperatură înaltă pentru un gust perfect.',
+      ingredients: ['aluat de pizza', 'roșii San Marzano', 'mozzarella di bufala', 'busuioc proaspăt', 'ulei de măsline', 'sare'],
+      instructions: [
+        'Preîncălzește cuptorul la temperatura maximă',
+        'Întinde aluatul într-un cerc subțire',
+        'Adaugă sosul de roșii și sare',
+        'Pune bucățele de mozzarella',
+        'Coace până când marginile sunt aurii',
+        'Adaugă busuioc proaspăt și ulei de măsline'
+      ],
       creatorId: 'user2',
       creatorName: 'Chef Maria',
       createdAt: DateTime.now(),
@@ -54,6 +67,10 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           SafeArea(
             child: AppBar(
+              centerTitle: true,
+              scrolledUnderElevation: 0,
+              shadowColor: Colors.transparent,
+              surfaceTintColor: Colors.transparent,
               title: Text(
                 'Forking',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
