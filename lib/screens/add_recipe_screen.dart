@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:forking/models/recipe.dart';
 
 class AddRecipeScreen extends StatefulWidget {
   const AddRecipeScreen({super.key});
@@ -14,13 +18,15 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _ingredientController = TextEditingController();
-  final _instructionController = TextEditingController();
-
-  // Lists to hold dynamic data
+  
+  // State for complex data
   final List<String> _ingredients = [];
-  final List<String> _instructions = [];
-
-  // TODO: Add state for picked image
+  final List<InstructionStep> _instructions = [];
+  final List<TextEditingController> _instructionControllers = [];
+  final List<TextEditingController> _timeControllers = [];
+  File? _pickedImage;
+  
+  // TODO: Add controllers for tags and total time
 
   @override
   void dispose() {
@@ -28,7 +34,13 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     _titleController.dispose();
     _descriptionController.dispose();
     _ingredientController.dispose();
-    _instructionController.dispose();
+    // Dispose all dynamic controllers
+    for (var controller in _instructionControllers) {
+      controller.dispose();
+    }
+    for (var controller in _timeControllers) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -48,20 +60,76 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   }
 
   void _addInstruction() {
-    if (_instructionController.text.trim().isNotEmpty) {
-      setState(() {
-        _instructions.add(_instructionController.text.trim());
-        _instructionController.clear();
-      });
-    }
+    setState(() {
+      _instructions.add(InstructionStep(description: ''));
+      _instructionControllers.add(TextEditingController());
+      _timeControllers.add(TextEditingController());
+    });
   }
 
   void _removeInstruction(int index) {
     setState(() {
+      // Important: dispose controller-ul înainte de a-l șterge din listă
+      _instructionControllers[index].dispose();
+      _timeControllers[index].dispose();
+      _instructionControllers.removeAt(index);
+      _timeControllers.removeAt(index);
       _instructions.removeAt(index);
     });
   }
 
+  void _updateInstructionDescription(int index, String description) {
+    setState(() {
+      _instructions[index].description = description;
+    });
+  }
+
+  void _updateInstructionTime(int index, String timeInMinutes) {
+    setState(() {
+      final minutes = int.tryParse(timeInMinutes);
+      if (minutes != null) {
+        _instructions[index].estimatedTime = Duration(minutes: minutes);
+      } else {
+        _instructions[index].estimatedTime = null;
+      }
+    });
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70, // Compress image to save space
+      maxWidth: 600,     // Resize image to a reasonable width
+    );
+
+    if (pickedFile != null) {
+      setState(() {
+        _pickedImage = File(pickedFile.path);
+      });
+    }
+  }
+
+  Future<void> _pickMediaForStep(int index) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 50,
+      maxWidth: 600,
+    );
+
+    if (pickedFile != null) {
+      setState(() {
+        _instructions[index].localMediaFile = File(pickedFile.path);
+      });
+    }
+  }
+
+  void _removeMediaForStep(int index) {
+    setState(() {
+      _instructions[index].localMediaFile = null;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -124,15 +192,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
               const SizedBox(height: 24),
 
               // 5. Instructions
-              _buildDynamicSection(
-                context: context,
-                title: 'Instructions',
-                hintText: 'e.g., Mix all ingredients',
-                controller: _instructionController,
-                items: _instructions,
-                onAdd: _addInstruction,
-                onRemove: _removeInstruction,
-              ),
+              _buildInstructionsSection(),
               const SizedBox(height: 32),
 
               // 6. Submit Button
@@ -156,9 +216,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   Widget _buildImagePicker(BuildContext context) {
     return Center(
       child: GestureDetector(
-        onTap: () {
-          // TODO: Implement image picking logic
-        },
+        onTap: _pickImage,
         child: Container(
           height: 150,
           width: double.infinity,
@@ -169,23 +227,32 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
               color: Theme.of(context).colorScheme.onSurface.withOpacity(0.2),
             ),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.camera_alt_outlined,
-                size: 40,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Tap to add a photo',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+          child: _pickedImage != null
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(11), // one less than container to avoid overflow
+                  child: Image.file(
+                    _pickedImage!,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                  ),
+                )
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.camera_alt_outlined,
+                      size: 40,
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tap to add a photo',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -269,4 +336,125 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
       ],
     );
   }
-} 
+
+  Widget _buildInstructionsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Instructions', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 12),
+        if (_instructions.isEmpty)
+          Center(
+            child: Text(
+              'Add the first step below.',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _instructions.length,
+            itemBuilder: (context, index) {
+              return _buildInstructionStepCard(index);
+            },
+          ),
+        const SizedBox(height: 12),
+        Center(
+          child: TextButton.icon(
+            icon: const Icon(Icons.add),
+            label: const Text('Add Step'),
+            onPressed: _addInstruction,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInstructionStepCard(int index) {
+    final step = _instructions[index]; // Get the current step for easier access
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Step ${index + 1}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  onPressed: () => _removeInstruction(index),
+                ),
+              ],
+            ),
+            TextFormField(
+              controller: _instructionControllers[index],
+              decoration: const InputDecoration(
+                labelText: 'Description',
+                hintText: 'e.g., Mix all ingredients...',
+              ),
+              validator: (value) => value!.isEmpty ? 'Step cannot be empty' : null,
+              onChanged: (value) {
+                _updateInstructionDescription(index, value);
+              },
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: TextFormField(
+                    controller: _timeControllers[index],
+                    decoration: const InputDecoration(
+                      labelText: 'Time (min)',
+                      hintText: 'e.g., 15',
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: (value) {
+                      _updateInstructionTime(index, value);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 3,
+                  child: step.localMediaFile == null
+                      ? OutlinedButton.icon(
+                          icon: const Icon(Icons.add_photo_alternate_outlined),
+                          label: const Text('Add Media'),
+                          onPressed: () => _pickMediaForStep(index),
+                        )
+                      : Stack(
+                          alignment: Alignment.topRight,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8.0),
+                              child: Image.file(
+                                step.localMediaFile!,
+                                height: 80,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.cancel, color: Colors.white70),
+                              onPressed: () => _removeMediaForStep(index),
+                            )
+                          ],
+                        ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

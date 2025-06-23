@@ -133,6 +133,17 @@ class RecipeCard extends StatelessWidget {
                     ),
                   )),
                   const SizedBox(height: 24),
+                  // Afișăm tag-urile
+                  Wrap(
+                    spacing: 8.0,
+                    runSpacing: 4.0,
+                    children: recipe.tags.map((tag) => Chip(
+                      label: Text(tag, style: Theme.of(context).textTheme.bodySmall),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      backgroundColor: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.5),
+                    )).toList(),
+                  ),
+                  const SizedBox(height: 24),
                   // Instrucțiuni
                   Text(
                     'Mod de preparare:',
@@ -157,7 +168,7 @@ class RecipeCard extends StatelessWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            entry.value,
+                            entry.value.description,
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: Theme.of(context).colorScheme.onSurface,
                             ),

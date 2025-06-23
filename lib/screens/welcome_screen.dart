@@ -191,7 +191,7 @@ class _LoginButton extends StatelessWidget {
         label: Text(text, style: TextStyle(color: textColor, fontSize: 16, letterSpacing: -0.1)),
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
-          padding: EdgeInsets.symmetric(vertical: 16),
+          padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         ),
         onPressed: onPressed,
