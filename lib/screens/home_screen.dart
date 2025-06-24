@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 import 'package:forking/models/recipe.dart';
 import 'package:forking/widgets/recipe_card.dart';
@@ -73,7 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
     Recipe(
       id: '4',
       title: 'Supă cremă de linte',
-      imageUrl: 'https://images.unsplash.com/photo-1622320498869-3a34a45686d6',
+      imageUrl: 'https://images.unsplash.com/photo-1612874742237-6526221588e3',
       description: 'O supă sățioasă și plină de nutrienți, ideală pentru o zi rece.',
       ingredients: ['250g linte roșie', '1 ceapă', '2 morcovi', '1 tulpină de țelină', 'Supă de legume'],
       instructions: [
@@ -99,64 +100,69 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          SafeArea(
-            child: AppBar(
-              centerTitle: true,
-              scrolledUnderElevation: 0,
-              shadowColor: Colors.transparent,
-              surfaceTintColor: Colors.transparent,
-              title: Text(
-                'Forking',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontFamily: 'EduNSWACTHand',
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.primary,
-                  fontSize: 28,
-                ),
-              ),
-              backgroundColor: Theme.of(context).colorScheme.surface,
-              elevation: 0,
-            ),
+      appBar: AppBar(
+        centerTitle: true,
+        scrolledUnderElevation: 0,
+        shadowColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        backgroundColor: Colors.transparent,
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
+        elevation: 0,
+        title: Text(
+          'Forking',
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            fontFamily: 'EduNSWACTHand',
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).colorScheme.primary,
+            fontSize: 28,
           ),
-
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.only(top: kToolbarHeight),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return SizedBox(
-                    width: constraints.maxWidth,
-                    height: constraints.maxHeight,
-                    child: CardSwiper(
-                      scale: 0.9,
-                      backCardOffset: const Offset(0, .5),
-                      controller: controller,
-                      isLoop: false,
-                      cardsCount: recipes.length,
-                      onSwipe: _onSwipe,
-                      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
-                      cardBuilder: (BuildContext context, int index, int percentThresholdX, int percentThresholdY) {
-                        return RecipeCard(
-                          recipe: recipes[index],
-                          constraints: constraints,
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              Icons.settings,
+              color: Theme.of(context).colorScheme.primary,
             ),
+            onPressed: () {
+              // TODO: Settings
+            },
           ),
         ],
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return SizedBox(
+            width: constraints.maxWidth,
+            height: constraints.maxHeight,
+            child: CardSwiper(
+              scale: 0.85,
+              backCardOffset: const Offset(0, .25),
+              controller: controller,
+              isLoop: false,
+              cardsCount: recipes.length,
+              onSwipe: _onSwipe,
+              padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
+              allowedSwipeDirection: const AllowedSwipeDirection.only(
+                left: true,
+                right: true,
+                up: false,
+                down: false,
+              ),
+              cardBuilder: (BuildContext context, int index, int percentThresholdX, int percentThresholdY) {
+                return RecipeCard(
+                  recipe: recipes[index],
+                  constraints: constraints,
+                );
+              },
+            ),
+          );
+        },
       ),
     );
   }
 
   bool _onSwipe(int previousIndex, int? currentIndex, CardSwiperDirection direction) {
-    // Returnăm true pentru a permite toate swipe-urile
     return true;
   }
 }
+
