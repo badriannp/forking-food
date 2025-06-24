@@ -1,6 +1,6 @@
 {
-    "name": "mash_or_trash",
-    "short_name": "mash_or_trash",
+    "name": "forking",
+    "short_name": "forking",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
