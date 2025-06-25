@@ -326,21 +326,6 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
 
     if (hasErrors) return;
 
-    Recipe newRecipe = Recipe(
-      id: UniqueKey().toString(),
-      title: _titleController.text.trim(),
-      imageUrl: '', // va fi setat după upload
-      description: _descriptionController.text.trim(),
-      ingredients: _ingredients,
-      instructions: _instructions,
-      totalEstimatedTime: Duration(hours: _totalHours, minutes: _totalMinutes),
-      tags: _selectedTags,
-      creatorId: 'current_user',
-      creatorName: 'Bleo Jua',
-      createdAt: DateTime.now(),
-      dietaryCriteria: _selectedCriteria,
-    );
-
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Recipe is valid! (Demo)')),
     );

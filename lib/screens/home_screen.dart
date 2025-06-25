@@ -44,48 +44,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Filtered recipes
   List<Recipe> get filteredRecipes {
-    print('🔍 DEBUG: Starting filtering...');
-    print('🔍 DEBUG: selectedDietaryCriteria = $selectedDietaryCriteria');
-    print('🔍 DEBUG: minTime = ${minTime.inMinutes}, maxTime = ${maxTime.inMinutes}');
-    print('🔍 DEBUG: Total recipes = ${recipes.length}');
-    
-    final result = recipes.where((recipe) {
-      print('🔍 DEBUG: Checking recipe "${recipe.title}" with criteria: ${recipe.dietaryCriteria}');
-      
+    return recipes.where((recipe) {
       // Filter by dietary criteria
       if (selectedDietaryCriteria.isNotEmpty) {
         final recipeCriteria = Set<String>.from(recipe.dietaryCriteria);
-        print('🔍 DEBUG: Recipe criteria set: $recipeCriteria');
-        print('🔍 DEBUG: Selected criteria: $selectedDietaryCriteria');
-        
         final hasAllCriteria = selectedDietaryCriteria.every((criteria) => recipeCriteria.contains(criteria));
-        print('🔍 DEBUG: Has all criteria: $hasAllCriteria');
-        
         if (!hasAllCriteria) {
-          print('🔍 DEBUG: ❌ Recipe "${recipe.title}" filtered out by dietary criteria');
           return false;
         }
       }
-      
       // Filter by time range
       final recipeTime = recipe.totalEstimatedTime.inMinutes;
       if (minTime.inMinutes != -1 && recipeTime < minTime.inMinutes) {
-        print('🔍 DEBUG: ❌ Recipe "${recipe.title}" filtered out by min time');
         return false;
       }
       if (maxTime.inMinutes != -1 && recipeTime > maxTime.inMinutes) {
-        print('🔍 DEBUG: ❌ Recipe "${recipe.title}" filtered out by max time');
         return false;
       }
-      
-      print('🔍 DEBUG: ✅ Recipe "${recipe.title}" passed all filters');
       return true;
     }).toList();
-    
-    print('🔍 DEBUG: Final filtered recipes count: ${result.length}');
-    print('🔍 DEBUG: Filtered recipes: ${result.map((r) => r.title).toList()}');
-    
-    return result;
   }
 
   @override
@@ -392,17 +369,6 @@ class _HomeScreenState extends State<HomeScreen> {
           // Get filtered recipes
           final recipesToShow = hasActiveFilters ? filteredRecipes : recipes;
           
-          // Workaround for CardSwiper with single card - add a dummy card
-          final recipesForSwiper = recipesToShow.length == 1 
-              ? [...recipesToShow, recipesToShow[0]] // Duplicate the single card
-              : recipesToShow;
-          
-          print('🔍 DEBUG BUILD: hasActiveFilters = $hasActiveFilters');
-          print('🔍 DEBUG BUILD: recipesToShow.length = ${recipesToShow.length}');
-          print('🔍 DEBUG BUILD: recipesForSwiper.length = ${recipesForSwiper.length}');
-          print('🔍 DEBUG BUILD: recipesToShow.isEmpty = ${recipesToShow.isEmpty}');
-          print('🔍 DEBUG BUILD: recipesToShow titles = ${recipesToShow.map((r) => r.title).toList()}');
-          
           return SizedBox(
             width: constraints.maxWidth,
             height: constraints.maxHeight,
@@ -410,10 +376,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 ? _buildNoResultsView()
                 : CardSwiper(
                     scale: 1,
+                    numberOfCardsDisplayed: recipesToShow.length == 1 ? 1 : 2,
                     backCardOffset: const Offset(0, 0),
                     controller: controller,
                     isLoop: false, // Allow loop for single card
-                    cardsCount: recipesForSwiper.length,
+                    cardsCount: recipesToShow.length,
                     onSwipe: _onSwipe,
                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
                     allowedSwipeDirection: const AllowedSwipeDirection.only(
@@ -424,7 +391,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     cardBuilder: (BuildContext context, int index, int percentThresholdX, int percentThresholdY) {
                       return RecipeCard(
-                        recipe: recipesForSwiper[index],
+                        recipe: recipesToShow[index],
                         constraints: constraints,
                       );
                     },

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:forking/models/recipe.dart';
-import 'package:forking/screens/recipe_view_screen.dart';
 import 'package:forking/widgets/recipe_card.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 class ProfileScreen extends StatelessWidget {
