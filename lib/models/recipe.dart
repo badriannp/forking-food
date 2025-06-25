@@ -2,18 +2,19 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:io';
 
 /// Represents a single step in the cooking process.
-/// It can contain a description, an optional media file (image/video),
+/// It can contain a description, an optional media file (image),
 /// and an optional estimated time.
 class InstructionStep {
   String description;
   Duration? estimatedTime;
   File? localMediaFile; // Used for local form state. Will be uploaded to get a URL.
-  // In the future, we will have `mediaUrl` and `mediaType` for data from Firebase.
+  String? mediaUrl; // URL from Firebase Storage for displaying images
 
   InstructionStep({
     required this.description,
     this.estimatedTime,
     this.localMediaFile,
+    this.mediaUrl,
   });
 }
 
@@ -33,6 +34,7 @@ class Recipe {
   final int forkInCount;
   final int forkOutCount;
   final int forkingoodCount;
+  final List<String> dietaryCriteria;
 
   Recipe({
     required this.id,
@@ -49,6 +51,7 @@ class Recipe {
     this.forkInCount = 0,
     this.forkOutCount = 0,
     this.forkingoodCount = 0,
+    required this.dietaryCriteria,
   });
 
   // Factory constructor to create a Recipe from a Firestore document
@@ -63,7 +66,7 @@ class Recipe {
         map['instructions']?.map((i) => InstructionStep(
           description: i['description'] as String,
           estimatedTime: i['estimatedTime'] != null ? Duration(seconds: i['estimatedTime'] as int) : null,
-          localMediaFile: i['localMediaFile'] != null ? File(i['localMediaFile'] as String) : null,
+          mediaUrl: i['mediaUrl'] as String?,
         )) ?? [],
       ),
       totalEstimatedTime: Duration(seconds: map['totalEstimatedTime'] as int? ?? 0),
@@ -74,6 +77,7 @@ class Recipe {
       forkInCount: map['forkInCount'] as int? ?? 0,
       forkOutCount: map['forkOutCount'] as int? ?? 0,
       forkingoodCount: map['forkingoodCount'] as int? ?? 0,
+      dietaryCriteria: List<String>.from(map['dietaryCriteria'] ?? []),
     );
   }
 
@@ -88,7 +92,7 @@ class Recipe {
       'instructions': instructions.map((i) => {
         'description': i.description,
         'estimatedTime': i.estimatedTime?.inSeconds,
-        'localMediaFile': i.localMediaFile?.path,
+        'mediaUrl': i.mediaUrl,
       }).toList(),
       'totalEstimatedTime': totalEstimatedTime.inSeconds,
       'tags': tags,
@@ -98,6 +102,7 @@ class Recipe {
       'forkInCount': forkInCount,
       'forkOutCount': forkOutCount,
       'forkingoodCount': forkingoodCount,
+      'dietaryCriteria': dietaryCriteria,
     };
   }
 } 

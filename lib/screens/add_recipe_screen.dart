@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:forking/models/recipe.dart';
+import 'package:flutter/services.dart';
 
 class AddRecipeScreen extends StatefulWidget {
   const AddRecipeScreen({super.key});
@@ -51,6 +52,24 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   bool _showTitleError = false;
   bool _showDescriptionError = false;
   List<bool> _showInstructionErrors = [];
+
+  final List<String> dietaryCriteriaList = [
+    'Vegan',
+    'Vegetarian',
+    'Lactose Free',
+    'Gluten Free',
+    'Nut Free',
+    'Dairy Free',
+    'Egg Free',
+    'Sugar Free',
+    'Low Carb',
+    'Low Fat',
+    'Paleo',
+    'Keto',
+    'Halal',
+    'Kosher',
+  ];
+  List<String> _selectedCriteria = [];
 
   @override
   void initState() {
@@ -307,6 +326,21 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
 
     if (hasErrors) return;
 
+    Recipe newRecipe = Recipe(
+      id: UniqueKey().toString(),
+      title: _titleController.text.trim(),
+      imageUrl: '', // va fi setat după upload
+      description: _descriptionController.text.trim(),
+      ingredients: _ingredients,
+      instructions: _instructions,
+      totalEstimatedTime: Duration(hours: _totalHours, minutes: _totalMinutes),
+      tags: _selectedTags,
+      creatorId: 'current_user',
+      creatorName: 'Bleo Jua',
+      createdAt: DateTime.now(),
+      dietaryCriteria: _selectedCriteria,
+    );
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Recipe is valid! (Demo)')),
     );
@@ -320,17 +354,18 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         scrolledUnderElevation: 0,
         shadowColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
-        title: Text(
-          'Add a new Recipe',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontFamily: 'EduNSWACTHand',
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.primary,
-                fontSize: 28,
-              ),
-        ),
-        backgroundColor: Theme.of(context).colorScheme.surface,
+        backgroundColor: Colors.transparent,
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
         elevation: 0,
+        title: Text(
+          'Forking',
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            fontFamily: 'EduNSWACTHand',
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).colorScheme.primary,
+            fontSize: 28,
+          ),
+        ),
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -406,9 +441,13 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
 
                 // 5. Instructions
                 _buildInstructionsSection(),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
 
-                // 6. Submit Button
+                // 6. Dietary Criteria
+                _buildDietaryCriteriaSection(),
+                const SizedBox(height: 24),
+
+                // 7. Submit Button
                 Center(
                   child: ElevatedButton(
                     onPressed: _onPublish,
@@ -629,10 +668,10 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
 
   Widget _buildInstructionsSection() {
     return Column(
+      spacing: 12,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Instructions', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 12),
         ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -710,7 +749,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                   child: step.localMediaFile == null
                       ? OutlinedButton.icon(
                           icon: const Icon(Icons.add_photo_alternate_outlined),
-                          label: const Text('Add Media'),
+                          label: const Text('Add Photo'),
                           onPressed: () => _pickMediaForStep(index),
                         )
                       : Stack(
@@ -742,10 +781,10 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
 
   Widget _buildTagsSection() {
     return Column(
+      spacing: 12,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Tags', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 8),
         TextField(
           controller: _tagController,
           focusNode: _tagFocus,
@@ -794,6 +833,60 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
           }).toList(),
         ),
       ],
+    );
+  }
+
+  Widget _buildDietaryCriteriaSection() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 24.0, bottom: 8.0),
+      child: Column(
+        spacing: 12,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Dietary Criteria', style: Theme.of(context).textTheme.titleMedium),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: dietaryCriteriaList.map((criteria) {
+              final selected = _selectedCriteria.contains(criteria);
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    if (selected) {
+                      _selectedCriteria.remove(criteria);
+                    } else {
+                      _selectedCriteria.add(criteria);
+                    }
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: selected 
+                        ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                        : Colors.transparent,
+                    border: Border.all(
+                      color: selected 
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                      width: 1.2,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    criteria,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: selected 
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
     );
   }
 }
