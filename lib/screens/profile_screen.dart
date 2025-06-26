@@ -4,6 +4,7 @@ import 'package:forking/widgets/recipe_card.dart';
 import 'package:flutter/services.dart';
 import 'package:forking/services/auth_service.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'dart:io';
 import 'package:forking/screens/welcome_screen.dart';
 
@@ -39,39 +40,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 70,
-      maxWidth: 300,
+      imageQuality: 100, // Keep original quality for cropping
     );
 
     if (pickedFile != null) {
       try {
-        // Show loading indicator
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                SizedBox(width: 16),
-                Text('Uploading profile photo...'),
-              ],
-            ),
-            duration: Duration(seconds: 2),
-          ),
-        );
+        // Crop the image first
+        final croppedFile = await _cropProfileImage(File(pickedFile.path));
+        
+        if (croppedFile == null) {
+          // User cancelled cropping
+          return;
+        }
 
-        // Upload image to Firebase Storage and update profile
-        await _authService.updateProfileImage(File(pickedFile.path));
+        // Upload cropped image to Firebase Storage and update profile
+        await _authService.updateProfileImage(croppedFile);
         
         // Refresh the UI
         setState(() {});
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile photo updated successfully!')),
-        );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -82,6 +69,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
   }
+
+  /// Crop profile image with user interaction
+  Future<File?> _cropProfileImage(File imageFile) async {
+    try {
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: imageFile.path,
+        uiSettings: [
+          AndroidUiSettings(
+            cropStyle: CropStyle.circle,
+            toolbarTitle: 'Crop Profile Photo',
+            toolbarColor: Theme.of(context).colorScheme.primary,
+            toolbarWidgetColor: Colors.white,
+            lockAspectRatio: true,
+            hideBottomControls: false,
+            showCropGrid: false, // Hide grid for cleaner look
+          ),
+          IOSUiSettings(
+            title: 'Crop Profile Photo',
+            aspectRatioLockEnabled: true,
+            cropStyle: CropStyle.circle,
+            aspectRatioPickerButtonHidden: true,
+            resetAspectRatioEnabled: false,
+            rotateButtonsHidden: true,
+            rotateClockwiseButtonHidden: true,
+          ),
+        ],
+      );
+      
+      return croppedFile != null ? File(croppedFile.path) : null;
+    } catch (e) {
+      print('Error cropping profile image: $e');
+      return null;
+    }
+  }
+
 
   Future<void> _saveName() async {
     if (_nameController.text.trim().isNotEmpty) {

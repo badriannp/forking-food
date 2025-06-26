@@ -14,11 +14,21 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const AddRecipeScreen(),
-    const ProfileScreen(),
-  ];
+  late final List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+    _screens = [
+      const HomeScreen(),
+      AddRecipeScreen(onRecipeAdded: () {
+        setState(() {
+          _selectedIndex = 2; // Profile tab
+        });
+      }),
+      const ProfileScreen(),
+    ];
+  }
 
   void _onItemTapped(int index) {
     FocusScope.of(context).unfocus();

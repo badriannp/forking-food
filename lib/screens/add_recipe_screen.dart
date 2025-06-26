@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:forking/models/recipe.dart';
+import 'package:forking/services/recipe_service.dart';
 import 'package:flutter/services.dart';
+import 'package:forking/services/auth_service.dart';
 
 class AddRecipeScreen extends StatefulWidget {
-  const AddRecipeScreen({super.key});
+  final VoidCallback? onRecipeAdded;
+  const AddRecipeScreen({Key? key, this.onRecipeAdded}) : super(key: key);
 
   @override
   State<AddRecipeScreen> createState() => _AddRecipeScreenState();
@@ -15,6 +18,8 @@ class AddRecipeScreen extends StatefulWidget {
 
 class _AddRecipeScreenState extends State<AddRecipeScreen> {
   final _formKey = GlobalKey<FormState>();
+  final RecipeService _recipeService = RecipeService();
+  final AuthService _authService = AuthService();
 
   // Controllers for text fields
   final _titleController = TextEditingController();
@@ -120,7 +125,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 50,
+      imageQuality: 70,
       maxWidth: 600,
     );
 
@@ -246,12 +251,11 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   void _removeInstruction(int index) {
     setState(() {
       if (_instructions.length == 1) {
-        // Dacă e singurul pas, doar golește-l
         _instructionControllers[index].clear();
         _instructions[index].description = '';
         _instructions[index].localMediaFile = null;
         _showInstructionErrors[index] = false;
-        // (opțional) Focus pe el
+        // (optional) Focus on the instruction
         FocusScope.of(context).requestFocus(_instructionFocuses[index]);
       } else {
         _instructionControllers[index].dispose();
@@ -279,7 +283,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     return false; // no error
   }
 
-  void _onPublish() {
+  void _onPublish() async {
     bool hasErrors = false;
 
     // Validate title
@@ -326,9 +330,70 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
 
     if (hasErrors) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Recipe is valid! (Demo)')),
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
     );
+
+    try {
+      // Create recipe object
+      final recipe = Recipe(
+        id: DateTime.now().millisecondsSinceEpoch.toString(), // Generate unique ID
+        title: _titleController.text.trim(),
+        imageUrl: _pickedImage!.path, // Will be uploaded to Firebase Storage
+        description: _descriptionController.text.trim(),
+        ingredients: List.from(_ingredients),
+        instructions: List.from(_instructions),
+        totalEstimatedTime: Duration(hours: _totalHours, minutes: _totalMinutes),
+        tags: List.from(_selectedTags),
+        creatorId: _authService.userId ?? '',
+        creatorName: _authService.userDisplayName ?? '',
+        createdAt: DateTime.now(),
+        dietaryCriteria: List.from(_selectedCriteria),
+      );
+
+      // Save recipe to Firebase
+      await _recipeService.saveRecipe(recipe);
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+      }
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Recipe published successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Go to Profile tab if callback exists
+        if (widget.onRecipeAdded != null) {
+          widget.onRecipeAdded!();
+        }
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+      }
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to publish recipe: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override

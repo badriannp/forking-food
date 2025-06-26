@@ -2,17 +2,49 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:image/image.dart' as img;
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
+  // Profile photo dimensions
+  static const int profilePhotoSize = 200; // 200x200px for optimal quality/size balance
+
   // Get current user
   User? get currentUser => _auth.currentUser;
 
   // Stream of auth changes
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  /// Compress and resize profile image
+  Future<Uint8List> _compressProfileImage(File imageFile) async {
+    try {
+      // Read the image file
+      final bytes = await imageFile.readAsBytes();
+      final image = img.decodeImage(bytes);
+      
+      if (image == null) {
+        throw Exception('Could not decode image');
+      }
+
+      // Resize la 200x200
+      final finalImage = img.copyResize(
+        image,
+        width: profilePhotoSize,
+        height: profilePhotoSize,
+        interpolation: img.Interpolation.linear,
+      );
+
+      return Uint8List.fromList(img.encodeJpg(finalImage, quality: 85));
+    } catch (e) {
+      print('Error compressing profile image: $e');
+      // Fallback to original image if compression fails
+      return await imageFile.readAsBytes();
+    }
+  }
 
   // Google Sign-In
   Future<UserCredential?> signInWithGoogle() async {
@@ -68,16 +100,33 @@ class AuthService {
   Future<String?> uploadProfileImage(File imageFile) async {
     try {
       final userId = _auth.currentUser?.uid;
-      if (userId == null) return null;
+      if (userId == null) {
+        print('Error: No authenticated user found');
+        return null;
+      }
 
+      print('Uploading profile image for user: $userId');
+      print('Image file path: ${imageFile.path}');
+      print('Image file exists: ${await imageFile.exists()}');
+
+      // Compress the image before upload
+      final compressedImageData = await _compressProfileImage(imageFile);
+      print('Compressed image size: ${compressedImageData.length} bytes');
+      
       final storageRef = _storage.ref().child('profile_images/$userId.jpg');
-      final uploadTask = storageRef.putFile(imageFile);
+      print('Storage reference path: ${storageRef.fullPath}');
+      
+      final uploadTask = storageRef.putData(compressedImageData);
       final snapshot = await uploadTask;
+      print('Upload completed successfully');
+      
       final downloadURL = await snapshot.ref.getDownloadURL();
+      print('Download URL: $downloadURL');
       
       return downloadURL;
     } catch (e) {
       print('Error uploading profile image: $e');
+      print('Error type: ${e.runtimeType}');
       return null;
     }
   }

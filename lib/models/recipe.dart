@@ -2,17 +2,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:io';
 
 /// Represents a single step in the cooking process.
-/// It can contain a description, an optional media file (image),
-/// and an optional estimated time.
+/// It can contain a description and an optional media file (image).
 class InstructionStep {
   String description;
-  Duration? estimatedTime;
   File? localMediaFile; // Used for local form state. Will be uploaded to get a URL.
   String? mediaUrl; // URL from Firebase Storage for displaying images
 
   InstructionStep({
     required this.description,
-    this.estimatedTime,
     this.localMediaFile,
     this.mediaUrl,
   });
@@ -31,9 +28,9 @@ class Recipe {
   final String creatorId;
   final String creatorName;
   final DateTime createdAt;
-  final int forkInCount;
-  final int forkOutCount;
-  final int forkingoodCount;
+  final int forkInCount;    // Likes/Fork in count
+  final int forkOutCount;   // Dislikes/Fork out count
+  final int forkingoodCount; // Super likes (future feature)
   final List<String> dietaryCriteria;
 
   Recipe({
@@ -65,7 +62,6 @@ class Recipe {
       instructions: List<InstructionStep>.from(
         map['instructions']?.map((i) => InstructionStep(
           description: i['description'] as String,
-          estimatedTime: i['estimatedTime'] != null ? Duration(seconds: i['estimatedTime'] as int) : null,
           mediaUrl: i['mediaUrl'] as String?,
         )) ?? [],
       ),
@@ -91,7 +87,6 @@ class Recipe {
       'ingredients': ingredients,
       'instructions': instructions.map((i) => {
         'description': i.description,
-        'estimatedTime': i.estimatedTime?.inSeconds,
         'mediaUrl': i.mediaUrl,
       }).toList(),
       'totalEstimatedTime': totalEstimatedTime.inSeconds,

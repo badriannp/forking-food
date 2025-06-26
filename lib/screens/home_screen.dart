@@ -4,6 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 import 'package:forking/models/recipe.dart';
 import 'package:forking/widgets/recipe_card.dart';
+import 'package:forking/services/recipe_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:forking/services/auth_service.dart';
 
 typedef CardBuilder = Widget? Function(BuildContext context, int index, int? realIndex);
 
@@ -16,8 +19,15 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final CardSwiperController controller = CardSwiperController();
+  final RecipeService _recipeService = RecipeService();
+  final AuthService _authService = AuthService();
   
-  late final List<Recipe> recipes;
+  // Recipe state
+  List<Recipe> recipes = [];
+  DocumentSnapshot? lastDocument;
+  bool hasMore = true;
+  bool isLoading = false;
+  bool isInitialLoading = true;
 
   // Filter state
   Set<String> selectedDietaryCriteria = {};
@@ -42,285 +52,133 @@ class _HomeScreenState extends State<HomeScreen> {
     'Organic',
   ];
 
-  // Filtered recipes
-  List<Recipe> get filteredRecipes {
-    return recipes.where((recipe) {
-      // Filter by dietary criteria
-      if (selectedDietaryCriteria.isNotEmpty) {
-        final recipeCriteria = Set<String>.from(recipe.dietaryCriteria);
-        final hasAllCriteria = selectedDietaryCriteria.every((criteria) => recipeCriteria.contains(criteria));
-        if (!hasAllCriteria) {
-          return false;
-        }
-      }
-      // Filter by time range
-      final recipeTime = recipe.totalEstimatedTime.inMinutes;
-      if (minTime.inMinutes != -1 && recipeTime < minTime.inMinutes) {
-        return false;
-      }
-      if (maxTime.inMinutes != -1 && recipeTime > maxTime.inMinutes) {
-        return false;
-      }
-      return true;
-    }).toList();
-  }
+  // Recipes to show (no more client-side filtering)
+  List<Recipe> get recipesToShow => recipes;
 
   @override
   void initState() {
     super.initState();
-    recipes = [
-      Recipe(
-        id: '1',
-        title: 'Tiramisu Clasic',
-        imageUrl: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9',
-        description: 'Un desert italian clasic cu cafea, mascarpone și biscuiți savoiardi. Perfect pentru ocazii speciale.',
-        ingredients: [
-          '6 ouă',
-          '150g zahăr',
-          '500g mascarpone',
-          '300ml cafea tare',
-          '200g biscuiți savoiardi',
-          'Cacao pudră pentru decor'
-        ],
-        instructions: [
-          InstructionStep(
-            description: 'Separe albușurile de gălbenușurile ouălor. Într-un bol mare, bate gălbenușurile cu jumătate din zahăr până devin spumoase și deschise la culoare.',
-            mediaUrl: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136',
-          ),
-          InstructionStep(
-            description: 'Adaugă mascarpone-ul la gălbenușuri și amestecă delicat până se combină perfect. Asigură-te că nu bate prea tare pentru a nu rupe crema.',
-          ),
-          InstructionStep(
-            description: 'Într-un alt bol curat, bate albușurile cu restul de zahăr până formează vârfuri ferme. Aceasta este partea cea mai importantă pentru textura finală.',
-            mediaUrl: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136',
-          ),
-          InstructionStep(
-            description: 'Încorporează delicat albușurile în amestecul de mascarpone, folosind o mișcare de jos în sus pentru a păstra aerul din albușuri.',
-          ),
-          InstructionStep(
-            description: 'Scufundă rapid biscuiții savoiardi în cafea și aranjează-i într-un strat pe fundul vasului. Nu îi ține prea mult în cafea pentru a nu se destrăma.',
-            mediaUrl: 'https://images.unsplash.com/photo-1515669097368-22e68427d265',
-          ),
-          InstructionStep(
-            description: 'Varsă jumătate din crema de mascarpone peste biscuiți și nivelează suprafața. Repetă cu un al doilea strat de biscuiți și cremă.',
-          ),
-          InstructionStep(
-            description: 'După ultimul strat de cremă, acoperă cu folie de plastic și lasă la frigider cel puțin 4 ore, ideal peste noapte.',
-          ),
-          InstructionStep(
-            description: 'Înainte de servire, presară generos cacao pudră pe suprafață. Taie în porții și servește rece.',
-            mediaUrl: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9',
-          ),
-        ],
-        totalEstimatedTime: const Duration(minutes: 45),
-        tags: ['desert', 'italian', 'cafea', 'mascarpone'],
-        creatorId: 'user4',
-        creatorName: 'Chef Elena',
-        createdAt: DateTime.now(),
-        dietaryCriteria: ['Gluten Free'],
-      ),
-      Recipe(
-        id: '2',
-        title: 'Sushi Roll California',
-        imageUrl: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351',
-        description: 'Sushi roll clasic cu crab, avocado și castraveți. Perfect pentru începători în arta sushi-ului.',
-        ingredients: [
-          '2 căni orez pentru sushi',
-          '4 foi nori',
-          '200g crab stick',
-          '1 avocado',
-          '1 castravețe',
-          'Wasabi și gari pentru servire'
-        ],
-        instructions: [
-          InstructionStep(
-            description: 'Pune o foaie de nori pe bambusul pentru sushi cu partea lucioasă în jos. Umezește-ți mâinile cu apă pentru a evita lipirea orezului.',
-            mediaUrl: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351',
-          ),
-          InstructionStep(
-            description: 'Întinde orezul pe nori, lăsând aproximativ 1 cm liber la partea de sus. Asigură-te că orezul este distribuit uniform.',
-          ),
-          InstructionStep(
-            description: 'Pune ingredientele în centrul orezului: crab stick, avocado și castravețe tăiate în fâșii. Nu pune prea multe ingrediente.',
-          ),
-          InstructionStep(
-            description: 'Ridică marginea de jos a bambusului și începe să rulezi nori-ul, apăsând ușor pentru a forma un cilindru compact.',
-          ),
-          InstructionStep(
-            description: 'Umezește marginea liberă de nori cu apă și termină de rulat. Apasă ușor pentru a sigila roll-ul.',
-            mediaUrl: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136',
-          ),
-          InstructionStep(
-            description: 'Cu un cuțit foarte ascuțit, taie roll-ul în 6-8 bucăți. Umezește cuțitul între tăieturi pentru a obține tăieturi curate.',
-          ),
-        ],
-        totalEstimatedTime: const Duration(minutes: 30),
-        tags: ['sushi', 'japonez', 'pescuit', 'raw'],
-        creatorId: 'user5',
-        creatorName: 'Chef Yuki',
-        createdAt: DateTime.now(),
-        dietaryCriteria: ['Vegetarian'],
-      ),
-      Recipe(
-        id: '3',
-        title: 'Pasta Bolognese',
-        imageUrl: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136',
-        description: 'Sos bolognese clasic cu carne de vită, roșii și parmezan. O rețetă italiană tradițională care se prepară cu dragoste.',
-        ingredients: [
-          '400g paste',
-          '500g carne de vită tocată',
-          '2 cepe',
-          '2 morcovi',
-          '2 tulpini țelină',
-          '400g roșii în conserve',
-          '100g parmezan',
-          'Busuioc proaspăt'
-        ],
-        instructions: [
-          InstructionStep(
-            description: 'Tăie ceapa, morcovii și țelina în cuburi mici. Încălzește uleiul într-o cratiță mare.',
-            mediaUrl: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136',
-          ),
-          InstructionStep(
-            description: 'Călește legumele până devin moi și transparente. Adaugă carnea și prăjește până se rumenește.',
-          ),
-          InstructionStep(
-            description: 'Adaugă roșiile, busuiocul și condimentele. Lasă să fiarbă la foc mic timp de 2 ore.',
-            mediaUrl: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136',
-          ),
-          InstructionStep(
-            description: 'Fierbe pastele conform instrucțiunilor. Amestecă cu sosul și servește cu parmezan ras.',
-          ),
-        ],
-        totalEstimatedTime: const Duration(minutes: 150),
-        tags: ['paste', 'italian', 'carne', 'tradițional'],
-        creatorId: 'user6',
-        creatorName: 'Chef Marco',
-        createdAt: DateTime.now(),
-        dietaryCriteria: ['Vegetarian', 'Nut Free'],
-      ),
-      Recipe(
-        id: '4',
-        title: 'Chocolate Lava Cake',
-        imageUrl: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9',
-        description: 'Desert elegant cu centru lichid de ciocolată, perfect pentru ocazii speciale.',
-        ingredients: [
-          '150g ciocolată neagră',
-          '150g unt',
-          '3 ouă',
-          '75g zahăr',
-          '50g făină',
-          '1 linguriță esență de vanilie',
-          'Puțină sare'
-        ],
-        instructions: [
-          InstructionStep(
-            description: 'Încălzește cuptorul la 200°C. Ungi 4 forme pentru muffin cu unt și presară cu cacao.',
-            mediaUrl: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136',
-          ),
-          InstructionStep(
-            description: 'Topă ciocolata și untul la bain-marie. Amestecă până se combină perfect.',
-          ),
-          InstructionStep(
-            description: 'Bate ouăle cu zahărul până devin spumoase. Încorporează în amestecul de ciocolată.',
-            mediaUrl: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136',
-          ),
-          InstructionStep(
-            description: 'Adaugă făina și vanilia. Varsă în forme și coace 12-14 minute.',
-          ),
-          InstructionStep(
-            description: 'Servește imediat, cu centrul lichid. Poți adăuga înghețată sau fructe de pădure.',
-            mediaUrl: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9',
-          ),
-        ],
-        totalEstimatedTime: const Duration(minutes: 25),
-        tags: ['desert', 'ciocolată', 'dulce', 'elegant'],
-        creatorId: 'user8',
-        creatorName: 'Chef Sophie',
-        createdAt: DateTime.now(),
-        dietaryCriteria: [],
-      ),
-      Recipe(
-        id: '5',
-        title: 'Sushi Roll California',
-        imageUrl: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351',
-        description: 'Sushi roll clasic cu crab, avocado și castraveți. Perfect pentru începători în arta sushi-ului.',
-        ingredients: [
-          '2 căni orez pentru sushi',
-          '4 foi nori',
-          '200g crab stick',
-          '1 avocado',
-          '1 castravețe',
-          'Wasabi și gari pentru servire'
-        ],
-        instructions: [
-          InstructionStep(
-            description: 'Pune o foaie de nori pe bambusul pentru sushi cu partea lucioasă în jos. Umezește-ți mâinile cu apă pentru a evita lipirea orezului.',
-            mediaUrl: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351',
-          ),
-          InstructionStep(
-            description: 'Întinde orezul pe nori, lăsând aproximativ 1 cm liber la partea de sus. Asigură-te că orezul este distribuit uniform.',
-          ),
-          InstructionStep(
-            description: 'Pune ingredientele în centrul orezului: crab stick, avocado și castravețe tăiate în fâșii. Nu pune prea multe ingrediente.',
-          ),
-          InstructionStep(
-            description: 'Ridică marginea de jos a bambusului și începe să rulezi nori-ul, apăsând ușor pentru a forma un cilindru compact.',
-          ),
-          InstructionStep(
-            description: 'Umezește marginea liberă de nori cu apă și termină de rulat. Apasă ușor pentru a sigila roll-ul.',
-            mediaUrl: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136',
-          ),
-          InstructionStep(
-            description: 'Cu un cuțit foarte ascuțit, taie roll-ul în 6-8 bucăți. Umezește cuțitul între tăieturi pentru a obține tăieturi curate.',
-          ),
-        ],
-        totalEstimatedTime: const Duration(minutes: 30),
-        tags: ['sushi', 'japonez', 'pescuit', 'raw'],
-        creatorId: 'user5',
-        creatorName: 'Chef Yuki',
-        createdAt: DateTime.now(),
-        dietaryCriteria: [],
-      ),
-      Recipe(
-        id: '6',
-        title: 'Beef Stir Fry',
-        imageUrl: 'https://images.unsplash.com/photo-1515669097368-22e68427d265',
-        description: 'Stir fry rapid cu carne de vită, legume proaspete și sos de soia. Perfect pentru o cină rapidă și sănătoasă.',
-        ingredients: [
-          '400g carne de vită tăiată în fâșii',
-          '2 morcovi',
-          '1 broccoli',
-          '1 ardei gras',
-          '2 căței de usturoi',
-          '1 linguriță ghimbir ras',
-          '3 linguri sos de soia',
-          '1 linguriță ulei de susan'
-        ],
-        instructions: [
-          InstructionStep(
-            description: 'Tăie carnea în fâșii subțiri și legumele în bucăți egale. Pregătește sosul de soia.',
-            mediaUrl: 'https://images.unsplash.com/photo-1515669097368-22e68427d265',
-          ),
-          InstructionStep(
-            description: 'Încălzește uleiul într-un wok sau cratiță mare. Prăjește carnea până se rumenește.',
-          ),
-          InstructionStep(
-            description: 'Adaugă legumele și prăjește rapid, păstrându-le crocante.',
-            mediaUrl: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9',
-          ),
-          InstructionStep(
-            description: 'Adaugă usturoiul, ghimbirul și sosul de soia. Amestecă rapid și servește cu orez.',
-          ),
-        ],
-        totalEstimatedTime: const Duration(minutes: 20),
-        tags: ['asian', 'rapid', 'sănătos', 'legume'],
-        creatorId: 'user9',
-        creatorName: 'Chef Wei',
-        createdAt: DateTime.now(),
-        dietaryCriteria: [],
-      ),
-    ];
+    _loadInitialRecipes();
+  }
+
+  /// Load initial recipes from Firebase
+  Future<void> _loadInitialRecipes() async {
+    if (isLoading) return;
+    
+    setState(() {
+      isLoading = true;
+      isInitialLoading = true;
+    });
+
+    try {
+      // For now, use a placeholder user ID - in real app, get from AuthService
+      final String? userId = _authService.userId;
+      if (userId == null) return;
+      
+      RecipePaginationResult result = await _recipeService.getRecipesForSwipe(
+        userId: userId,
+        limit: 20,
+        dietaryCriteria: selectedDietaryCriteria.isNotEmpty ? selectedDietaryCriteria.toList() : null,
+        maxTime: maxTime.inMinutes != -1 ? maxTime : null,
+      );
+
+      setState(() {
+        recipes = result.recipes;
+        lastDocument = result.lastDocument;
+        hasMore = result.hasMore;
+        isLoading = false;
+        isInitialLoading = false;
+      });
+    } catch (e) {
+      print('Error loading initial recipes: $e');
+      setState(() {
+        isLoading = false;
+        isInitialLoading = false;
+      });
+    }
+  }
+
+  /// Load more recipes when user is near the end
+  Future<void> _loadMoreRecipes() async {
+    if (isLoading || !hasMore || lastDocument == null) return;
+    
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      // For now, use a placeholder user ID - in real app, get from AuthService
+      final String? userId = _authService.userId;
+      if (userId == null) return;
+      
+      RecipePaginationResult result = await _recipeService.getRecipesForSwipe(
+        userId: userId,
+        lastDocument: lastDocument,
+        limit: 20,
+        dietaryCriteria: selectedDietaryCriteria.isNotEmpty ? selectedDietaryCriteria.toList() : null,
+        maxTime: maxTime.inMinutes != -1 ? maxTime : null,
+      );
+
+      setState(() {
+        recipes.addAll(result.recipes);
+        lastDocument = result.lastDocument;
+        hasMore = result.hasMore;
+        isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading more recipes: $e');
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  /// Check if we need to load more recipes
+  void _checkAndLoadMore(int currentIndex) {
+    if (recipesToShow.isEmpty) return;
+    
+    // Load more when user is 3 cards away from the end
+    if (currentIndex >= recipesToShow.length - 3 && hasMore && !isLoading) {
+      _loadMoreRecipes();
+    }
+  }
+
+  /// Reload recipes when filters change
+  Future<void> _reloadRecipesWithFilters() async {
+    setState(() {
+      isLoading = true;
+      isInitialLoading = true;
+      recipes.clear();
+      lastDocument = null;
+      hasMore = true;
+    });
+
+    try {
+      // For now, use a placeholder user ID - in real app, get from AuthService
+      final String? userId = _authService.userId;
+      if (userId == null) return;
+      
+      RecipePaginationResult result = await _recipeService.getRecipesForSwipe(
+        userId: userId,
+        limit: 20,
+        dietaryCriteria: selectedDietaryCriteria.isNotEmpty ? selectedDietaryCriteria.toList() : null,
+        maxTime: maxTime.inMinutes != -1 ? maxTime : null,
+      );
+
+      setState(() {
+        recipes = result.recipes;
+        lastDocument = result.lastDocument;
+        hasMore = result.hasMore;
+        isLoading = false;
+        isInitialLoading = false;
+      });
+    } catch (e) {
+      print('Error reloading recipes with filters: $e');
+      setState(() {
+        isLoading = false;
+        isInitialLoading = false;
+      });
+    }
   }
 
   @override
@@ -361,41 +219,81 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          // Calculate if filters are active
-          final hasActiveFilters = selectedDietaryCriteria.isNotEmpty || 
-                                 minTime.inMinutes != -1 || 
-                                 maxTime.inMinutes != -1;
-          
-          // Get filtered recipes
-          final recipesToShow = hasActiveFilters ? filteredRecipes : recipes;
+          // Show loading state
+          if (isInitialLoading) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
           
           return SizedBox(
             width: constraints.maxWidth,
             height: constraints.maxHeight,
-            child: recipesToShow.isEmpty && hasActiveFilters
-                ? _buildNoResultsView()
-                : CardSwiper(
-                    scale: 1,
-                    numberOfCardsDisplayed: recipesToShow.length == 1 ? 1 : 2,
-                    backCardOffset: const Offset(0, 0),
-                    controller: controller,
-                    isLoop: false, // Allow loop for single card
-                    cardsCount: recipesToShow.length,
-                    onSwipe: _onSwipe,
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                    allowedSwipeDirection: const AllowedSwipeDirection.only(
-                      left: true,
-                      right: true,
-                      up: false,
-                      down: false,
-                    ),
-                    cardBuilder: (BuildContext context, int index, int percentThresholdX, int percentThresholdY) {
-                      return RecipeCard(
-                        recipe: recipesToShow[index],
-                        constraints: constraints,
-                      );
-                    },
-                  ),
+            child: recipesToShow.isEmpty
+                ? _buildNoRecipesView()
+                : Stack(
+                        children: [
+                          CardSwiper(
+                            scale: 1,
+                            numberOfCardsDisplayed: recipesToShow.length == 1 ? 1 : 2,
+                            backCardOffset: const Offset(0, 0),
+                            controller: controller,
+                            isLoop: false,
+                            cardsCount: recipesToShow.length,
+                            onSwipe: _onSwipe,
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                            allowedSwipeDirection: const AllowedSwipeDirection.only(
+                              left: true,
+                              right: true,
+                              up: false,
+                              down: false,
+                            ),
+                            cardBuilder: (BuildContext context, int index, int percentThresholdX, int percentThresholdY) {
+                              return RecipeCard(
+                                recipe: recipesToShow[index],
+                                constraints: constraints,
+                              );
+                            },
+                          ),
+                          // Loading indicator for pagination
+                          if (isLoading)
+                            Positioned(
+                              bottom: 20,
+                              left: 0,
+                              right: 0,
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.7),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Loading more recipes...',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
           );
         },
       ),
@@ -403,9 +301,33 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   bool _onSwipe(int previousIndex, int? currentIndex, CardSwiperDirection direction) {
+    final actualCurrentIndex = currentIndex ?? 0;
+    
     setState(() {
-      currentIndex = currentIndex ?? 0;
+      // currentIndex is already handled above
     });
+    
+    // Check if we need to load more recipes
+    _checkAndLoadMore(actualCurrentIndex);
+    
+    // Save swipe action to Firebase
+    if (actualCurrentIndex < recipesToShow.length) {
+      final recipe = recipesToShow[actualCurrentIndex];
+      final swipeDirection = direction == CardSwiperDirection.left 
+          ? SwipeDirection.left 
+          : SwipeDirection.right;
+      
+      // For now, use a placeholder user ID - in real app, get from AuthService
+      final String? userId = _authService.userId;
+      if (userId == null) return false;
+      
+      _recipeService.saveSwipe(
+        userId: userId,
+        recipeId: recipe.id,
+        direction: swipeDirection,
+      );
+    }
+    
     return true;
   }
 
@@ -457,13 +379,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const Spacer(),
                     TextButton(
-                      onPressed: () {
+                      onPressed: () async {
                         setState(() {
                           selectedDietaryCriteria.clear();
                           minTime = const Duration(minutes: -1);
                           maxTime = const Duration(minutes: -1);
                         });
                         setModalState(() {});
+                        await _reloadRecipesWithFilters();
                       },
                       child: const Text('Clear All'),
                     ),
@@ -636,8 +559,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
+                    onPressed: () async {
                       Navigator.pop(context);
+                      await _reloadRecipesWithFilters();
                     },
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -646,7 +570,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     child: Text(
-                      'Apply Filters (${filteredRecipes.length} recipes)',
+                      'Apply Filters (${recipesToShow.length} recipes)',
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -836,7 +760,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Widget _buildNoResultsView() {
+  Widget _buildNoRecipesView() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
