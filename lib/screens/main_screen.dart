@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:forking/screens/home_screen.dart';
-import 'package:forking/screens/add_recipe_screen.dart';
-import 'package:forking/screens/profile_screen.dart';
+import 'package:forking/screens/tabs/home_screen.dart';
+import 'package:forking/screens/tabs/add_recipe_screen.dart';
+import 'package:forking/screens/tabs/profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
