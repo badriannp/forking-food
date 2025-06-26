@@ -352,95 +352,99 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
           ),
         ),
       ),
-      body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: const EdgeInsets.all(20.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. Image Picker
-                _buildImagePicker(context),
-                const SizedBox(height: 24),
+      body: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.all(20.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. Image Picker
+              _buildImagePicker(context),
+              const SizedBox(height: 24),
 
-                // 2. Title
-                TextFormField(
-                  controller: _titleController,
-                  focusNode: _titleFocus,
-                  textInputAction: TextInputAction.next,
-                  decoration: InputDecoration(
-                    labelText: 'Recipe Title',
-                    errorText: _showTitleError ? 'Please enter a title' : null,
+              // 2. Title
+              TextFormField(
+                controller: _titleController,
+                focusNode: _titleFocus,
+                textInputAction: TextInputAction.next,
+                decoration: InputDecoration(
+                  labelText: 'Recipe Title',
+                  hintText: 'Enter your recipe title',
+                  hintStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withAlpha((0.3 * 255).toInt()),
                   ),
-                  onChanged: (value) {
-                    if (_showTitleError && value.trim().isNotEmpty) {
-                      setState(() => _showTitleError = false);
-                    }
-                  },
-                  onFieldSubmitted: (_) {
-                    if (mounted && _descriptionFocus.canRequestFocus) {
-                      FocusScope.of(context).requestFocus(_descriptionFocus);
-                    }
-                  },
+                  errorText: _showTitleError ? 'Please enter a title' : null,
                 ),
-                const SizedBox(height: 16),
+                onChanged: (value) {
+                  if (_showTitleError && value.trim().isNotEmpty) {
+                    setState(() => _showTitleError = false);
+                  }
+                },
+                onFieldSubmitted: (_) {
+                  if (mounted && _descriptionFocus.canRequestFocus) {
+                    FocusScope.of(context).requestFocus(_descriptionFocus);
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
 
-                // 3. Description
-                TextFormField(
-                  controller: _descriptionController,
-                  focusNode: _descriptionFocus,
-                  textInputAction: TextInputAction.next,
-                  decoration: InputDecoration(
-                    labelText: 'Description',
-                    errorText: _showDescriptionError ? 'Please enter a description' : null,
+              // 3. Description
+              TextFormField(
+                controller: _descriptionController,
+                focusNode: _descriptionFocus,
+                textInputAction: TextInputAction.next,
+                decoration: InputDecoration(
+                  labelText: 'Description',
+                  hintText: 'Describe your recipe...',
+                  hintStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withAlpha((0.3 * 255).toInt()),
                   ),
-                  maxLines: 3,
-                  onChanged: (value) {
-                    if (_showDescriptionError && value.trim().isNotEmpty) {
-                      setState(() => _showDescriptionError = false);
-                    }
-                  },
-                  onFieldSubmitted: (_) {
-                    if (mounted && _tagFocus.canRequestFocus) {
-                      FocusScope.of(context).requestFocus(_tagFocus);
-                    }
-                  },
+                  errorText: _showDescriptionError ? 'Please enter a description' : null,
                 ),
-                const SizedBox(height: 24),
+                maxLines: 3,
+                onChanged: (value) {
+                  if (_showDescriptionError && value.trim().isNotEmpty) {
+                    setState(() => _showDescriptionError = false);
+                  }
+                },
+                onFieldSubmitted: (_) {
+                  if (mounted && _tagFocus.canRequestFocus) {
+                    FocusScope.of(context).requestFocus(_tagFocus);
+                  }
+                },
+              ),
+              const SizedBox(height: 24),
 
-                // Timp total estimat
-                _buildTotalTimeSection(),
-                const SizedBox(height: 24),
+              // Timp total estimat
+              _buildTotalTimeSection(),
+              const SizedBox(height: 24),
 
-                // 3. Tags section
-                _buildTagsSection(),
-                const SizedBox(height: 24),
+              // 3. Tags section
+              _buildTagsSection(),
+              const SizedBox(height: 24),
 
-                // 4. Ingredients
-                _buildIngredientsSection(),
-                const SizedBox(height: 24),
+              // 4. Ingredients
+              _buildIngredientsSection(),
+              const SizedBox(height: 24),
 
-                // 5. Instructions
-                _buildInstructionsSection(),
-                const SizedBox(height: 24),
+              // 5. Instructions
+              _buildInstructionsSection(),
+              const SizedBox(height: 24),
 
-                // 6. Dietary Criteria
-                _buildDietaryCriteriaSection(),
-                const SizedBox(height: 24),
+              // 6. Dietary Criteria
+              _buildDietaryCriteriaSection(),
+              const SizedBox(height: 24),
 
-                // 7. Submit Button
-                Center(
-                  child: ElevatedButton(
-                    onPressed: _onPublish,
-                    child: const Text('Publish Recipe'),
-                  ),
+              // 7. Submit Button
+              Center(
+                child: ElevatedButton(
+                  onPressed: _onPublish,
+                  child: const Text('Publish Recipe'),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -587,7 +591,13 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                 controller: _ingredientController,
                 focusNode: _ingredientFocus,
                 textInputAction: TextInputAction.done,
-                decoration: InputDecoration(hintText: 'e.g., 200g flour'),
+                decoration: InputDecoration(
+                  labelText: 'Ingredient',
+                  hintText: 'e.g., 200g flour',
+                  hintStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withAlpha((0.3 * 255).toInt()),
+                  ),
+                ),
                 onFieldSubmitted: (_) {
                   _addIngredient();
                 },
@@ -693,11 +703,17 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                   'Step ${index + 1}',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                if (_instructions.length > 1)
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.red),
-                    onPressed: () => _removeInstruction(index),
+                IconButton(
+                  icon: Icon(
+                    Icons.delete_outline, 
+                    color: _instructions.length > 1 
+                        ? Colors.red 
+                        : Colors.grey.withOpacity(0.3),
                   ),
+                  onPressed: _instructions.length > 1 
+                      ? () => _removeInstruction(index)
+                      : null,
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -710,6 +726,9 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
               decoration: InputDecoration(
                 labelText: 'Description',
                 hintText: 'e.g., Mix all ingredients...',
+                hintStyle: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface.withAlpha((0.3 * 255).toInt()),
+                ),
                 errorText: _showInstructionErrors[index] ? 'Step cannot be empty' : null,
               ),
               onChanged: (value) {
@@ -776,6 +795,10 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
           textInputAction: TextInputAction.done,
           decoration: InputDecoration(
             labelText: 'Add or search tag',
+            hintText: 'Search or add a new tag',
+            hintStyle: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface.withAlpha((0.3 * 255).toInt()),
+            ),
             prefixIcon: const Icon(Icons.tag),
             errorText: _showTagsError ? 'Please add at least one tag.' : null,
           ),

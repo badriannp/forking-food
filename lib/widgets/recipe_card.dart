@@ -68,14 +68,69 @@ class RecipeCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          recipe.title,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        // Title and likes row
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                recipe.title,
+                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            // Fork-in count (likes)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.restaurant,
+                                    size: 14,
+                                    color: Colors.white.withAlpha(220),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    recipe.forkInCount.toString(),
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Colors.white.withAlpha(220),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 8),
+                        // Tags
+                        if (recipe.tags.isNotEmpty)
+                          Wrap(
+                            spacing: 6.0,
+                            runSpacing: 4.0,
+                            children: recipe.tags.take(3).map((tag) => Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.4),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                tag,
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.white.withAlpha(200),
+                                  fontSize: 11,
+                                ),
+                              ),
+                            )).toList(),
+                          ),
+                        if (recipe.tags.isNotEmpty) const SizedBox(height: 8),
+                        // Creator name and time
                         Row(
                           children: [
                             Icon(
@@ -91,16 +146,30 @@ class RecipeCard extends StatelessWidget {
                               ),
                             ),
                             const Spacer(),
-                            Icon(
-                              Icons.access_time,
-                              size: 16,
-                              color: Colors.white.withAlpha(220),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${recipe.totalEstimatedTime.inMinutes} min',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.white.withAlpha(220),
+                            // Time
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.access_time,
+                                    size: 12,
+                                    color: Colors.white.withAlpha(220),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '${recipe.totalEstimatedTime.inMinutes} min',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Colors.white.withAlpha(220),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -116,9 +185,6 @@ class RecipeCard extends StatelessWidget {
             Column(
               spacing: 32,
               children: [
-                // Tags
-                _buildTags(context),
-                
                 // Description
                 _buildDescription(context),
                 
@@ -138,42 +204,65 @@ class RecipeCard extends StatelessWidget {
     );
   }
 
-  Widget _buildTags(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Wrap(
-        alignment: WrapAlignment.start,
-        spacing: 6.0,
-        runSpacing: 4.0,
-        children: recipe.tags.map((tag) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: Theme.of(context).colorScheme.outline.withAlpha(75),
-              width: 1,
-            ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            tag,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withAlpha(175),
-            ),
-          ),
-        )).toList(),
-      ),
-    );
-  }
-
   Widget _buildDescription(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Text(
-        '\t${recipe.description}',
-        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-          color: Theme.of(context).colorScheme.onSurface,
-          height: 1.5,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.description_outlined,
+                color: Theme.of(context).colorScheme.primary,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Description',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '\t${recipe.description}',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface,
+              height: 1.5,
+            ),
+          ),
+          // Tags under description
+          if (recipe.tags.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 6.0,
+              runSpacing: 4.0,
+              children: recipe.tags.map((tag) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  tag,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              )).toList(),
+            ),
+          ],
+        ],
       ),
     );
   }

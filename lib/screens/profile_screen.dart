@@ -85,8 +85,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _saveName() async {
     if (_nameController.text.trim().isNotEmpty) {
+      final newName = _nameController.text.trim();
+      final currentName = _authService.userDisplayName ?? '';
+      
+      // Check if the new name is identical to the current name
+      if (newName == currentName) {
+        setState(() {
+          _isEditingName = false;
+        });
+        return; // No need to make Firebase call
+      }
+      
       try {
-        await _authService.updateDisplayName(_nameController.text.trim());
+        await _authService.updateDisplayName(newName);
         setState(() {
           _isEditingName = false;
         });
@@ -595,6 +606,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final recipes = isSaved ? _savedRecipes : _myRecipes;
 
     return GridView.builder(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.all(8.0),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
