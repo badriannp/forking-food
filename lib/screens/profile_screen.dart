@@ -2,9 +2,120 @@ import 'package:flutter/material.dart';
 import 'package:forking/models/recipe.dart';
 import 'package:forking/widgets/recipe_card.dart';
 import 'package:flutter/services.dart';
+import 'package:forking/services/auth_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'package:forking/screens/welcome_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final AuthService _authService = AuthService();
+  bool _isEditingName = false;
+  final TextEditingController _nameController = TextEditingController();
+  final FocusNode _nameFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize with current user's display name or empty string
+    final currentName = _authService.userDisplayName;
+    _nameController.text = currentName ?? '';
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _nameFocus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickProfileImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+      maxWidth: 300,
+    );
+
+    if (pickedFile != null) {
+      try {
+        // Show loading indicator
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 16),
+                Text('Uploading profile photo...'),
+              ],
+            ),
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // Upload image to Firebase Storage and update profile
+        await _authService.updateProfileImage(File(pickedFile.path));
+        
+        // Refresh the UI
+        setState(() {});
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile photo updated successfully!')),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update profile photo: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _saveName() async {
+    if (_nameController.text.trim().isNotEmpty) {
+      try {
+        await _authService.updateDisplayName(_nameController.text.trim());
+        setState(() {
+          _isEditingName = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Name updated successfully!')),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update name. Please try again.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _signOut() async {
+    try {
+      await _authService.signOut();
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error signing out. Please try again.')),
+      );
+    }
+  }
 
   List<Recipe> get _myRecipes => [
     Recipe(
@@ -53,7 +164,7 @@ class ProfileScreen extends StatelessWidget {
       totalEstimatedTime: const Duration(minutes: 45),
       tags: ['desert', 'italian', 'cafea', 'mascarpone'],
       creatorId: 'current_user',
-      creatorName: 'Bleo Jua',
+      creatorName: 'Chef Elena',
       createdAt: DateTime.now(),
       dietaryCriteria: ['Vegetarian', 'Gluten Free'],
     ),
@@ -95,7 +206,7 @@ class ProfileScreen extends StatelessWidget {
       totalEstimatedTime: const Duration(minutes: 30),
       tags: ['sushi', 'japonez', 'pescuit', 'raw'],
       creatorId: 'current_user',
-      creatorName: 'Bleo Jua',
+      creatorName: 'Chef Yuki',
       createdAt: DateTime.now(),
       dietaryCriteria: [],
     ),
@@ -133,7 +244,7 @@ class ProfileScreen extends StatelessWidget {
       totalEstimatedTime: const Duration(minutes: 150),
       tags: ['paste', 'italian', 'carne', 'tradițional'],
       creatorId: 'current_user',
-      creatorName: 'Bleo Jua',
+      creatorName: 'Chef Marco',
       createdAt: DateTime.now(),
       dietaryCriteria: ['Vegetarian', 'Nut Free'],
     ),
@@ -174,7 +285,7 @@ class ProfileScreen extends StatelessWidget {
       totalEstimatedTime: const Duration(minutes: 25),
       tags: ['desert', 'ciocolată', 'elegant', 'rapid'],
       creatorId: 'current_user',
-      creatorName: 'Bleo Jua',
+      creatorName: 'Chef Sophie',
       createdAt: DateTime.now(),
       dietaryCriteria: [],
     ),
@@ -285,6 +396,15 @@ class ProfileScreen extends StatelessWidget {
               fontSize: 28,
             ),
           ),
+          actions: [
+            IconButton(
+              icon: Icon(
+                Icons.logout,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              onPressed: _signOut,
+            ),
+          ],
         ),
         body: NestedScrollView(
           headerSliverBuilder: (context, innerBoxIsScrolled) {
@@ -320,54 +440,158 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildProfileHeader(BuildContext context) {
+    final userDisplayName = _authService.userDisplayName ?? 'User';
+    final userPhotoURL = _authService.userPhotoURL;
+
     return Padding(
       padding: const EdgeInsets.all(20.0),
-      child: Column(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const CircleAvatar(
-            radius: 50,
-            backgroundImage: NetworkImage('https://images.unsplash.com/photo-1554151228-14d9def656e4'), // Dummy image
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Bleo Jua', // Dummy name
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '@bleojua', // Dummy username
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+          // Profile Photo with edit button
+          Stack(
             children: [
-              _buildStatColumn(context, Icons.favorite_border, '1.2k'),
-              _buildStatColumn(context, Icons.receipt_long, '12'),
-              _buildStatColumn(context, Icons.star_border, '89'),
+              CircleAvatar(
+                radius: 44,
+                backgroundImage: userPhotoURL != null 
+                    ? NetworkImage(userPhotoURL)
+                    : null,
+                child: userPhotoURL == null 
+                    ? Icon(
+                        Icons.person,
+                        size: 44,
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                      )
+                    : null,
+              ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: GestureDetector(
+                  onTap: _pickProfileImage,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.camera_alt,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                  ),
+                ),
+              ),
             ],
+          ),
+          const SizedBox(width: 24),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Name with edit functionality
+                if (_isEditingName) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _nameController,
+                          focusNode: _nameFocus,
+                          textAlign: TextAlign.left,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 19,
+                          ),
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.check),
+                        onPressed: _saveName,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () {
+                          setState(() {
+                            _isEditingName = false;
+                            _nameController.text = userDisplayName;
+                          });
+                        },
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          userDisplayName,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 19,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.edit, size: 16),
+                        onPressed: () {
+                          setState(() {
+                            _isEditingName = true;
+                          });
+                          Future.delayed(const Duration(milliseconds: 100), () {
+                            _nameFocus.requestFocus();
+                          });
+                        },
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    _buildStatFlex(context, Icons.favorite_border, '1.2k'),
+                    _buildStatFlex(context, Icons.receipt_long, '12'),
+                    _buildStatFlex(context, Icons.star_border, '89'),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatColumn(BuildContext context, IconData icon, String value) {
-    return Column(
-      children: [
-        Icon(icon, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), size: 24),
-        const SizedBox(height: 4),
-        Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-        )),
-      ],
+  Widget _buildStatFlex(BuildContext context, IconData icon, String value) {
+    final color = Theme.of(context).colorScheme.onSurface.withOpacity(0.82);
+    return Expanded(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 17),
+          const SizedBox(width: 6),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildRecipesGrid({bool isSaved = false}) {
-    // Folosește rețetele reale
     final recipes = isSaved ? _savedRecipes : _myRecipes;
 
     return GridView.builder(
@@ -406,7 +630,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Titlu rețetă
+                // Titlu
                 Positioned(
                   left: 8,
                   right: 8,
@@ -438,41 +662,38 @@ class ProfileScreen extends StatelessWidget {
         return Dialog(
           backgroundColor: Colors.transparent,
           insetPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 0),
-          child: GestureDetector(
-            onTap: () {}, // Prevent closing when tapping on the card
-            child: Stack(
-              children: [
-                // RecipeCard
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    return RecipeCard(
-                      recipe: recipe,
-                      constraints: constraints,
-                    );
-                  },
-                ),
-                // Close button
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 24,
-                      ),
+          child: Stack(
+            children: [
+              // RecipeCard
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  return RecipeCard(
+                    recipe: recipe,
+                    constraints: constraints,
+                  );
+                },
+              ),
+              // Close button
+              Positioned(
+                top: 12,
+                right: 12,
+                child: GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 24,
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },

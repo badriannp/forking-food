@@ -4,6 +4,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
 import 'package:forking/screens/login_screen.dart';
+import 'package:forking/screens/main_screen.dart';
+import 'package:forking/services/auth_service.dart';
 import 'package:flutter/services.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -13,10 +15,58 @@ class WelcomeScreen extends StatefulWidget {
 }
 
 class _WelcomeScreenState extends State<WelcomeScreen> {
+  bool _isLoading = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final authService = AuthService();
+      final userCredential = await authService.signInWithGoogle();
+      
+      if (userCredential != null) {
+        // Successfully signed in
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const MainScreen()),
+          );
+        }
+      } else {
+        // User cancelled or error occurred
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Sign in was cancelled or failed'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error signing in: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -65,17 +115,26 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             const SizedBox(height: 144),
                             
                             _LoginButton(
-                              icon: SvgPicture.asset(
-                                'assets/google_logo.svg',
-                                height: 20,
-                                width: 20,
-                              ),
-                              text: 'Continue with Google',
+                              icon: _isLoading 
+                                  ? SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                          Theme.of(context).colorScheme.onSurface,
+                                        ),
+                                      ),
+                                    )
+                                  : SvgPicture.asset(
+                                      'assets/google_logo.svg',
+                                      height: 20,
+                                      width: 20,
+                                    ),
+                              text: _isLoading ? 'Signing in...' : 'Continue with Google',
                               color: Theme.of(context).colorScheme.surface,
                               textColor: Theme.of(context).colorScheme.onSurface,
-                              onPressed: () {
-                                // Google login logic
-                              },
+                              onPressed: _isLoading ? null : () => _signInWithGoogle(),
                             ),
                             const SizedBox(height: 16),
                             _LoginButton(
@@ -172,7 +231,7 @@ class _LoginButton extends StatelessWidget {
   final String text;
   final Color color;
   final Color textColor;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   const _LoginButton({
     required this.icon,

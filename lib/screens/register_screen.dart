@@ -74,7 +74,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
     final authService = AuthService();
     try {
-      await authService.register(_emailController.text, _passwordController.text);
+      await authService.register(
+        _emailController.text, 
+        _passwordController.text,
+        _nameController.text.trim(),
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Account created!')),
