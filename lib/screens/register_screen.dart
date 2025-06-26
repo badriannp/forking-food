@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
 import 'main_screen.dart';
+import 'forgot_password_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -196,6 +197,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           FocusScope.of(context).unfocus();
                           _handleRegister();
                         },
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+                            );
+                          },
+                          child: const Text('Forgot password?'),
+                        ),
                       ),
                       const SizedBox(height: 24),
                       SizedBox(
