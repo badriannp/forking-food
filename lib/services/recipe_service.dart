@@ -4,81 +4,12 @@ import 'dart:io';
 import '../models/recipe.dart';
 import 'package:image/image.dart' as img;
 import 'dart:typed_data';
+import 'user_service.dart';
 
 class RecipeService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
-
-  /// Get recipes for swiping with cursor pagination
-  Future<RecipePaginationResult> getRecipesForSwipe({
-    required String userId,
-    DocumentSnapshot? lastDocument,
-    int limit = 20,
-    List<String>? dietaryCriteria,
-    Duration? minTime,
-    Duration? maxTime,
-  }) async {
-    try {
-      // Build the base query
-      Query query = _firestore.collection('recipes')
-          .where('creatorId', isNotEqualTo: userId); // Exclude own recipes
-
-      // Add dietary criteria filter if provided
-      if (dietaryCriteria != null && dietaryCriteria.isNotEmpty) {
-        // For now, we'll filter client-side for multiple criteria
-        // In production, you might want to use array-contains-any or similar
-      }
-
-      // Add time filter if provided
-      if (minTime != null && maxTime != null) {
-        query = query.where('totalEstimatedTime', isGreaterThanOrEqualTo: minTime.inSeconds)
-                     .where('totalEstimatedTime', isLessThanOrEqualTo: maxTime.inSeconds);
-      } else if (minTime != null) {
-        query = query.where('totalEstimatedTime', isGreaterThanOrEqualTo: minTime.inSeconds);
-      } else if (maxTime != null) {
-        query = query.where('totalEstimatedTime', isLessThanOrEqualTo: maxTime.inSeconds);
-      }
-
-      // Order by creation date (newest first)
-      query = query.orderBy('createdAt', descending: true);
-
-      // Add cursor pagination
-      if (lastDocument != null) {
-        query = query.startAfterDocument(lastDocument);
-      }
-
-      // Limit results
-      query = query.limit(limit);
-
-      // Execute query
-      QuerySnapshot snapshot = await query.get();
-
-      // Convert to Recipe objects
-      List<Recipe> recipes = snapshot.docs.map((doc) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        data['id'] = doc.id; // Add document ID
-        return Recipe.fromMap(data);
-      }).toList();
-
-      // Get the last document for next pagination
-      DocumentSnapshot? newLastDocument = snapshot.docs.isNotEmpty 
-          ? snapshot.docs.last 
-          : null;
-
-      return RecipePaginationResult(
-        recipes: recipes,
-        lastDocument: newLastDocument,
-        hasMore: snapshot.docs.length == limit,
-      );
-    } catch (e) {
-      print('Error getting recipes: $e');
-      return RecipePaginationResult(
-        recipes: [],
-        lastDocument: null,
-        hasMore: false,
-      );
-    }
-  }
+  final UserService _userService = UserService();
 
   /// Save a new recipe to Firestore
   Future<String> saveRecipe(Recipe recipe) async {
@@ -108,7 +39,7 @@ class RecipeService {
         ));
       }
 
-      // Create recipe with updated URLs
+      // Create recipe with only creatorId (no creator data stored)
       Recipe updatedRecipe = Recipe(
         id: recipe.id,
         title: recipe.title,
@@ -119,7 +50,8 @@ class RecipeService {
         totalEstimatedTime: recipe.totalEstimatedTime,
         tags: recipe.tags,
         creatorId: recipe.creatorId,
-        creatorName: recipe.creatorName,
+        creatorName: null, // Will be loaded from UserService when needed
+        creatorPhotoURL: null, // Will be loaded from UserService when needed
         createdAt: recipe.createdAt,
         dietaryCriteria: recipe.dietaryCriteria,
       );
@@ -198,89 +130,119 @@ class RecipeService {
           .orderBy('createdAt', descending: true)
           .get();
 
-      return snapshot.docs.map((doc) {
+      List<Recipe> recipes = snapshot.docs.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         data['id'] = doc.id;
         return Recipe.fromMap(data);
       }).toList();
+
+      // Load creator data for all recipes
+      return await _loadCreatorDataForRecipes(recipes);
+      
     } catch (e) {
       print('Error getting user recipes: $e');
       return [];
     }
   }
 
-  /// Get saved recipes
+  /// Get saved recipes (recipes swiped right by user)
   Future<List<Recipe>> getSavedRecipes(String userId) async {
     try {
-      // Get user's saved recipe IDs
-      DocumentSnapshot userDoc = await _firestore
-          .collection('users')
+      // Get user's swipe data
+      DocumentSnapshot swipesDoc = await _firestore
+          .collection('swipes')
           .doc(userId)
           .get();
 
-      List<String> savedRecipeIds = List<String>.from(
-        (userDoc.data() as Map<String, dynamic>?)?['savedRecipes'] ?? []
-      );
+      if (!swipesDoc.exists || swipesDoc.data() == null) {
+        return [];
+      }
+
+      Map<String, dynamic> swipedRecipes = 
+          (swipesDoc.data() as Map<String, dynamic>)['swipedRecipes'] ?? {};
+
+      // Filter recipes that were swiped right (saved)
+      List<String> savedRecipeIds = swipedRecipes.entries
+          .where((entry) => entry.value == SwipeDirection.right.name)
+          .map((entry) => entry.key)
+          .toList();
 
       if (savedRecipeIds.isEmpty) return [];
 
-      // Get the actual recipes
+      // Get the actual recipes in batches (Firestore has a limit of 10 for 'in' queries)
       List<Recipe> recipes = [];
-      for (String recipeId in savedRecipeIds) {
-        DocumentSnapshot recipeDoc = await _firestore
+      const int batchSize = 10;
+      
+      for (int i = 0; i < savedRecipeIds.length; i += batchSize) {
+        final batch = savedRecipeIds.skip(i).take(batchSize).toList();
+        
+        QuerySnapshot recipeSnapshot = await _firestore
             .collection('recipes')
-            .doc(recipeId)
+            .where(FieldPath.documentId, whereIn: batch)
             .get();
 
-        if (recipeDoc.exists) {
-          Map<String, dynamic> data = recipeDoc.data() as Map<String, dynamic>;
-          data['id'] = recipeDoc.id;
+        for (DocumentSnapshot doc in recipeSnapshot.docs) {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          data['id'] = doc.id;
           recipes.add(Recipe.fromMap(data));
         }
       }
 
-      return recipes;
+      // Sort by creation date (newest first)
+      recipes.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      // Load creator data for all recipes
+      return await _loadCreatorDataForRecipes(recipes);
+      
     } catch (e) {
       print('Error getting saved recipes: $e');
       return [];
     }
   }
 
-  /// Update all recipes when user changes profile data
-  Future<void> updateUserRecipesData({
-    required String userId,
-    required String newDisplayName,
-    required String? newPhotoURL,
-  }) async {
+  /// Load creator data for a list of recipes using UserService
+  Future<List<Recipe>> _loadCreatorDataForRecipes(List<Recipe> recipes) async {
     try {
-      // Get all recipes by this user
-      QuerySnapshot snapshot = await _firestore
-          .collection('recipes')
-          .where('creatorId', isEqualTo: userId)
-          .get();
-
-      // Update each recipe in a batch
-      WriteBatch batch = _firestore.batch();
+      // Get unique creator IDs
+      final creatorIds = recipes.map((r) => r.creatorId).toSet().toList();
+      print('Loading creator data for ${creatorIds.length} unique creators: $creatorIds');
       
-      for (DocumentSnapshot doc in snapshot.docs) {
-        Map<String, dynamic> updates = {
-          'creatorName': newDisplayName,
-        };
-        
-        if (newPhotoURL != null) {
-          updates['creatorPhotoURL'] = newPhotoURL;
+      // Load creator data from UserService
+      final creatorData = await _userService.getMultipleUsersData(creatorIds);
+      print('Loaded creator data for ${creatorData.length} users');
+      
+      // Update recipes with creator data
+      return recipes.map((recipe) {
+        final creator = creatorData[recipe.creatorId];
+        if (creator != null) {
+          print('Updating recipe ${recipe.id} with creator: ${creator.displayName}');
+          return Recipe(
+            id: recipe.id,
+            title: recipe.title,
+            imageUrl: recipe.imageUrl,
+            description: recipe.description,
+            ingredients: recipe.ingredients,
+            instructions: recipe.instructions,
+            totalEstimatedTime: recipe.totalEstimatedTime,
+            tags: recipe.tags,
+            creatorId: recipe.creatorId,
+            creatorName: creator.displayName,
+            creatorPhotoURL: creator.photoURL,
+            createdAt: recipe.createdAt,
+            forkInCount: recipe.forkInCount,
+            forkOutCount: recipe.forkOutCount,
+            forkingoodCount: recipe.forkingoodCount,
+            dietaryCriteria: recipe.dietaryCriteria,
+          );
+        } else {
+          print('No creator data found for recipe ${recipe.id} with creatorId: ${recipe.creatorId}');
         }
-        
-        batch.update(doc.reference, updates);
-      }
-
-      // Commit the batch
-      await batch.commit();
+        return recipe;
+      }).toList();
       
-      print('Updated ${snapshot.docs.length} recipes for user $userId');
     } catch (e) {
-      print('Error updating user recipes: $e');
-      throw Exception('Failed to update user recipes: $e');
+      print('Error loading creator data: $e');
+      return recipes; // Return original recipes if loading fails
     }
   }
 
@@ -333,6 +295,9 @@ class RecipeService {
       .where((r) => dietaryCriteria == null || dietaryCriteria.isEmpty || dietaryCriteria.every((tag) => r.dietaryCriteria.contains(tag)))
       .toList();
 
+      // Load creator data for all recipes
+      recipes = await _loadCreatorDataForRecipes(recipes);
+
       DocumentSnapshot? newLastDocument = snapshot.docs.isNotEmpty 
           ? snapshot.docs.last 
           : null;
@@ -349,6 +314,149 @@ class RecipeService {
         lastDocument: null,
         hasMore: false,
       );
+    }
+  }
+
+  /// Delete a recipe and all related data (cascade delete)
+  Future<void> deleteRecipe(String recipeId, String userId) async {
+    try {
+      // Verify the user owns this recipe
+      DocumentSnapshot recipeDoc = await _firestore
+          .collection('recipes')
+          .doc(recipeId)
+          .get();
+
+      if (!recipeDoc.exists) {
+        throw Exception('Recipe not found');
+      }
+
+      Map<String, dynamic> recipeData = recipeDoc.data() as Map<String, dynamic>;
+      if (recipeData['creatorId'] != userId) {
+        throw Exception('You can only delete your own recipes');
+      }
+
+      // Delete from all users' swipes (batch operation for efficiency)
+      QuerySnapshot swipesSnapshot = await _firestore
+          .collection('swipes')
+          .get();
+
+      WriteBatch batch = _firestore.batch();
+      
+      // Remove recipe from all users' swipe data
+      for (DocumentSnapshot swipeDoc in swipesSnapshot.docs) {
+        Map<String, dynamic> swipeData = swipeDoc.data() as Map<String, dynamic>;
+        Map<String, dynamic> swipedRecipes = swipeData['swipedRecipes'] ?? {};
+        
+        if (swipedRecipes.containsKey(recipeId)) {
+          swipedRecipes.remove(recipeId);
+          batch.update(swipeDoc.reference, {'swipedRecipes': swipedRecipes});
+        }
+      }
+
+      // Delete the recipe document
+      batch.delete(_firestore.collection('recipes').doc(recipeId));
+
+      // Delete recipe images from Storage
+      try {
+        // Check if the recipe folder exists before trying to delete
+        final recipeFolderRef = _storage.ref('recipes/$recipeId');
+        final result = await recipeFolderRef.listAll();
+        
+        // Delete all files in the recipe folder
+        for (Reference item in result.items) {
+          try {
+            await item.delete();
+          } catch (e) {
+            print('Warning: Could not delete file ${item.fullPath}: $e');
+            // Continue with other files
+          }
+        }
+        
+        // Delete subfolders (like instructions)
+        for (Reference prefix in result.prefixes) {
+          try {
+            final subResult = await prefix.listAll();
+            for (Reference item in subResult.items) {
+              try {
+                await item.delete();
+              } catch (e) {
+                print('Warning: Could not delete file ${item.fullPath}: $e');
+              }
+            }
+          } catch (e) {
+            print('Warning: Could not list subfolder ${prefix.fullPath}: $e');
+          }
+        }
+      } catch (e) {
+        // If the folder doesn't exist, that's fine - just log it
+        if (e.toString().contains('object-not-found')) {
+          print('Info: Recipe images folder does not exist, skipping deletion');
+        } else {
+          print('Warning: Could not delete recipe images: $e');
+        }
+        // Continue even if image deletion fails
+      }
+
+      // Commit all changes
+      await batch.commit();
+
+    } catch (e) {
+      print('Error deleting recipe: $e');
+      throw Exception('Failed to delete recipe: $e');
+    }
+  }
+
+  /// Get all available tags from the database
+  Future<List<String>> getAllTags() async {
+    try {
+      DocumentSnapshot tagsDoc = await _firestore
+          .collection('app_data')
+          .doc('tags')
+          .get();
+
+      if (tagsDoc.exists && tagsDoc.data() != null) {
+        Map<String, dynamic> data = tagsDoc.data() as Map<String, dynamic>;
+        List<dynamic> tags = data['tags'] ?? [];
+        return tags.cast<String>();
+      }
+      
+      return [];
+    } catch (e) {
+      print('Error getting tags: $e');
+      return [];
+    }
+  }
+
+  /// Add a new tag to the database
+  Future<void> addTag(String tag) async {
+    try {
+      await _firestore
+          .collection('app_data')
+          .doc('tags')
+          .set({
+            'tags': FieldValue.arrayUnion([tag])
+          }, SetOptions(merge: true));
+    } catch (e) {
+      print('Error adding tag: $e');
+      throw Exception('Failed to add tag: $e');
+    }
+  }
+
+  /// Search tags by query
+  Future<List<String>> searchTags(String query) async {
+    try {
+      List<String> allTags = await getAllTags();
+      
+      if (query.isEmpty) {
+        return allTags;
+      }
+      
+      return allTags
+          .where((tag) => tag.toLowerCase().contains(query.toLowerCase()))
+          .toList();
+    } catch (e) {
+      print('Error searching tags: $e');
+      return [];
     }
   }
 }

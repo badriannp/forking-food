@@ -34,11 +34,11 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   File? _pickedImage;
   
   // Tag logic
-  final List<String> _allTags = [
-    'pasta', 'vegan', 'grill', 'desert', 'rapid', 'mic dejun'];
+  List<String> _allTags = [];
   final List<String> _selectedTags = [];
   final TextEditingController _tagController = TextEditingController();
   String _tagInput = '';
+  bool _isLoadingTags = false;
 
   int _totalHours = 0;
   int _totalMinutes = 0;
@@ -58,6 +58,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   bool _showTitleError = false;
   bool _showDescriptionError = false;
   List<bool> _showInstructionErrors = [];
+  bool _isSaving = false;
 
   final List<String> dietaryCriteriaList = [
     'Vegan',
@@ -84,6 +85,83 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     _instructionControllers.add(TextEditingController());
     _instructionFocuses.add(FocusNode());
     _showInstructionErrors.add(false);
+    
+    // Load tags from database
+    _loadTags();
+  }
+
+  /// Load all available tags from database
+  Future<void> _loadTags() async {
+    setState(() {
+      _isLoadingTags = true;
+    });
+    
+    try {
+      final tags = await _recipeService.getAllTags();
+      setState(() {
+        _allTags = tags;
+        _isLoadingTags = false;
+      });
+    } catch (e) {
+      print('Error loading tags: $e');
+      setState(() {
+        _isLoadingTags = false;
+      });
+    }
+  }
+
+  /// Search tags based on input
+  Future<void> _searchTags(String query) async {
+    if (query.isEmpty) {
+      await _loadTags();
+      return;
+    }
+    
+    try {
+      final tags = await _recipeService.searchTags(query);
+      setState(() {
+        _allTags = tags;
+      });
+    } catch (e) {
+      print('Error searching tags: $e');
+    }
+  }
+
+  /// Add a new tag to database and local list
+  Future<void> _addNewTag(String tag) async {
+    if (tag.trim().isEmpty) return;
+    
+    final cleanTag = tag.trim();
+    if (_selectedTags.contains(cleanTag)) return;
+    
+    try {
+      // Add to database
+      await _recipeService.addTag(cleanTag);
+      
+      // Add to local lists
+      setState(() {
+        _selectedTags.add(cleanTag);
+        if (!_allTags.contains(cleanTag)) {
+          _allTags.add(cleanTag);
+        }
+        _tagController.clear();
+        _tagInput = '';
+      });
+      
+      // Clear error state
+      if (_showTagsError) {
+        setState(() {
+          _showTagsError = false;
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to add tag: ${e.toString()}'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
   }
 
   @override
@@ -216,36 +294,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   }
 
   // ===== TAG MANAGEMENT =====
-  void _onTagInputChanged(String value) {
-    setState(() {
-      _tagInput = value;
-    });
-  }
-
-  List<String> get _filteredTags {
-    if (_tagInput.isEmpty) return [];
-    return _allTags
-        .where((tag) => tag.toLowerCase().contains(_tagInput.toLowerCase()) && !_selectedTags.contains(tag))
-        .toList();
-  }
-
-  void _addTag(String tag) {
-    if (!_selectedTags.contains(tag)) {
-      setState(() {
-        _selectedTags.add(tag);
-        _tagController.clear();
-        _tagInput = '';
-        _showTagsError = false; // Clear error when tag is added
-      });
-    }
-  }
-
-  void _removeTag(int index) {
-    setState(() {
-      _selectedTags.removeAt(index);
-      // Don't clear error here as we want to show error if list becomes empty
-    });
-  }
+  // (Old functions removed - using new database-based system)
 
   // ===== INGREDIENTS MANAGEMENT =====
   void _addIngredient() {
@@ -301,61 +350,53 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     });
   }
 
-  // ===== VALIDATION =====
-  bool _validateField(String value, bool Function() setError) {
-    if (value.trim().isEmpty) {
-      setState(() => setError());
-      return true; // has error
-    }
-    return false; // no error
-  }
-
-  void _onPublish() async {
-    bool hasErrors = false;
-
-    // Validate title
-    if (_validateField(_titleController.text, () => _showTitleError = true)) {
-      hasErrors = true;
+  Future<void> _saveRecipe() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
     }
 
-    // Validate description
-    if (_validateField(_descriptionController.text, () => _showDescriptionError = true)) {
-      hasErrors = true;
-    }
-
-    // Validate image
     if (_pickedImage == null) {
       setState(() => _showImageError = true);
-      hasErrors = true;
+      return;
     }
 
-    // Validate time
+    if (_titleController.text.trim().isEmpty) {
+      setState(() => _showTitleError = true);
+      return;
+    }
+
+    if (_descriptionController.text.trim().isEmpty) {
+      setState(() => _showDescriptionError = true);
+      return;
+    }
+
     if (_totalHours == 0 && _totalMinutes == 0) {
       setState(() => _showTimeError = true);
-      hasErrors = true;
+      return;
     }
 
-    // Validate tags
     if (_selectedTags.isEmpty) {
       setState(() => _showTagsError = true);
-      hasErrors = true;
+      return;
     }
 
-    // Validate ingredients
     if (_ingredients.isEmpty) {
       setState(() => _showIngredientsError = true);
-      hasErrors = true;
+      return;
     }
 
-    // Validate instruction steps
-    for (int i = 0; i < _instructions.length; i++) {
-      if (_instructions[i].description.trim().isEmpty) {
-        setState(() => _showInstructionErrors[i] = true);
-        hasErrors = true;
-      }
+    // Validate instructions - at least one step with description
+    final validInstructions = _instructions.where((i) => i.description.trim().isNotEmpty).toList();
+    if (validInstructions.isEmpty) {
+      setState(() {
+        _showInstructionErrors.fillRange(0, _showInstructionErrors.length, true);
+      });
+      return;
     }
 
-    if (hasErrors) return;
+    setState(() {
+      _isSaving = true;
+    });
 
     // Show loading indicator
     showDialog(
@@ -367,23 +408,30 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     );
 
     try {
-      // Create recipe object
+      final String? userId = _authService.userId;
+      final String? displayName = _authService.userDisplayName;
+      final String? photoURL = _authService.userPhotoURL;
+      
+      if (userId == null || displayName == null) {
+        throw Exception('User not authenticated');
+      }
+
       final recipe = Recipe(
-        id: DateTime.now().millisecondsSinceEpoch.toString(), // Generate unique ID
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
         title: _titleController.text.trim(),
-        imageUrl: _pickedImage!.path, // Will be uploaded to Firebase Storage
+        imageUrl: _pickedImage!.path,
         description: _descriptionController.text.trim(),
         ingredients: List.from(_ingredients),
-        instructions: List.from(_instructions),
+        instructions: _instructions.where((i) => i.description.trim().isNotEmpty).toList(),
         totalEstimatedTime: Duration(hours: _totalHours, minutes: _totalMinutes),
         tags: List.from(_selectedTags),
-        creatorId: _authService.userId ?? '',
-        creatorName: _authService.userDisplayName ?? '',
+        creatorId: userId,
+        creatorName: displayName,
+        creatorPhotoURL: photoURL,
         createdAt: DateTime.now(),
-        dietaryCriteria: List.from(_selectedCriteria),
+        dietaryCriteria: _selectedCriteria.toList(),
       );
 
-      // Save recipe to Firebase
       await _recipeService.saveRecipe(recipe);
 
       // Close loading dialog
@@ -391,19 +439,16 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         Navigator.of(context).pop(); // Close loading dialog
       }
 
-      // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Recipe published successfully!'),
-            backgroundColor: Colors.green,
-          ),
+          const SnackBar(content: Text('Recipe saved successfully!')),
         );
+        
+        // Reset form
         resetForm();
-        // Go to Profile tab if callback exists
-        if (widget.onRecipeAdded != null) {
-          widget.onRecipeAdded!();
-        }
+        
+        // Callback to navigate to profile
+        widget.onRecipeAdded?.call();
       }
     } catch (e) {
       // Close loading dialog
@@ -411,14 +456,19 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         Navigator.of(context).pop(); // Close loading dialog
       }
 
-      // Show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to publish recipe: $e'),
-            backgroundColor: Colors.red,
+            content: Text('Failed to save recipe: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
       }
     }
   }
@@ -623,8 +673,21 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
               // 7. Submit Button
               Center(
                 child: ElevatedButton(
-                  onPressed: _onPublish,
-                  child: const Text('Publish Recipe'),
+                  onPressed: _isSaving ? null : _saveRecipe,
+                  child: _isSaving 
+                    ? const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          SizedBox(width: 8),
+                          Text('Publishing...'),
+                        ],
+                      )
+                    : const Text('Publish Recipe'),
                 ),
               ),
             ],
@@ -968,10 +1031,10 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
 
   Widget _buildTagsSection() {
     return Column(
-      spacing: 12,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Tags', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 12),
         TextField(
           controller: _tagController,
           focusNode: _tagFocus,
@@ -982,35 +1045,71 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
             hintStyle: TextStyle(
               color: Theme.of(context).colorScheme.onSurface.withAlpha((0.3 * 255).toInt()),
             ),
-            prefixIcon: const Icon(Icons.tag),
+            prefixIcon: _isLoadingTags 
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.tag),
             errorText: _showTagsError ? 'Please add at least one tag.' : null,
           ),
-          onChanged: _onTagInputChanged,
+          onChanged: (value) {
+            setState(() {
+              _tagInput = value;
+            });
+            _searchTags(value);
+          },
           onSubmitted: (value) {
             final tag = value.trim();
             if (tag.isNotEmpty && !_selectedTags.contains(tag)) {
-              _addTag(tag);
+              _addNewTag(tag);
             }
           },
         ),
-        if (_tagInput.isNotEmpty)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ..._filteredTags.map((tag) => ListTile(
-                    title: Text(tag),
-                    leading: const Icon(Icons.tag),
-                    onTap: () => _addTag(tag),
-                  )),
-              if (!_allTags.contains(_tagInput) && !_selectedTags.contains(_tagInput))
-                ListTile(
-                  leading: const Icon(Icons.add),
-                  title: Text('Add "$_tagInput"'),
-                  onTap: () => _addTag(_tagInput),
-                ),
-            ],
+        if (_tagInput.isNotEmpty && _allTags.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(top: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+              ),
+            ),
+            child: Column(
+              children: [
+                ..._allTags
+                    .where((tag) => tag.toLowerCase().contains(_tagInput.toLowerCase()))
+                    .take(5)
+                    .map((tag) => ListTile(
+                          title: Text(tag),
+                          leading: const Icon(Icons.tag, size: 20),
+                          onTap: () {
+                            if (!_selectedTags.contains(tag)) {
+                              setState(() {
+                                _selectedTags.add(tag);
+                                _tagController.clear();
+                                _tagInput = '';
+                              });
+                              if (_showTagsError) {
+                                setState(() {
+                                  _showTagsError = false;
+                                });
+                              }
+                            }
+                          },
+                        )),
+                if (!_allTags.contains(_tagInput) && _tagInput.isNotEmpty)
+                  ListTile(
+                    leading: const Icon(Icons.add, size: 20),
+                    title: Text('Add "$_tagInput"'),
+                    onTap: () => _addNewTag(_tagInput),
+                  ),
+              ],
+            ),
           ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Wrap(
           spacing: 8.0,
           runSpacing: 4.0,
@@ -1019,7 +1118,11 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
             final tag = entry.value;
             return Chip(
               label: Text(tag),
-              onDeleted: () => _removeTag(idx),
+              onDeleted: () {
+                setState(() {
+                  _selectedTags.removeAt(idx);
+                });
+              },
             );
           }).toList(),
         ),

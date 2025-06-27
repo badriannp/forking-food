@@ -26,7 +26,8 @@ class Recipe {
   final Duration totalEstimatedTime;       // New field
   final List<String> tags;                 // New field: e.g., ['pasta', 'vegetarian', 'quick']
   final String creatorId;
-  final String creatorName;
+  final String? creatorName; // Made nullable for centralized user data
+  final String? creatorPhotoURL;           // Chef's avatar URL
   final DateTime createdAt;
   final int forkInCount;    // Likes/Fork in count
   final int forkOutCount;   // Dislikes/Fork out count
@@ -43,7 +44,8 @@ class Recipe {
     required this.totalEstimatedTime,
     required this.tags,
     required this.creatorId,
-    required this.creatorName,
+    this.creatorName, // Made optional
+    this.creatorPhotoURL,
     required this.createdAt,
     this.forkInCount = 0,
     this.forkOutCount = 0,
@@ -68,7 +70,8 @@ class Recipe {
       totalEstimatedTime: Duration(seconds: map['totalEstimatedTime'] as int? ?? 0),
       tags: List<String>.from(map['tags'] as List),
       creatorId: map['creatorId'] as String,
-      creatorName: map['creatorName'] as String,
+      creatorName: map['creatorName'] as String?,
+      creatorPhotoURL: map['creatorPhotoURL'] as String?,
       createdAt: (map['createdAt'] as Timestamp).toDate(),
       forkInCount: map['forkInCount'] as int? ?? 0,
       forkOutCount: map['forkOutCount'] as int? ?? 0,
@@ -93,6 +96,7 @@ class Recipe {
       'tags': tags,
       'creatorId': creatorId,
       'creatorName': creatorName,
+      'creatorPhotoURL': creatorPhotoURL,
       'createdAt': createdAt,
       'forkInCount': forkInCount,
       'forkOutCount': forkOutCount,

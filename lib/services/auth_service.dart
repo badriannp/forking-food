@@ -4,11 +4,15 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:image/image.dart' as img;
+import 'package:http/http.dart' as http;
+import '../models/user_data.dart';
+import 'user_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   final FirebaseStorage _storage = FirebaseStorage.instance;
+  final UserService _userService = UserService();
 
   // Profile photo dimensions
   static const int profilePhotoSize = 200; // 200x200px for optimal quality/size balance
@@ -69,11 +73,17 @@ class AuthService {
       // Sign in to Firebase with the credential
       final UserCredential userCredential = await _auth.signInWithCredential(credential);
       
-      // Update user profile with Google data if it's a new user
+      // Process Google profile photo for new users
       if (userCredential.additionalUserInfo?.isNewUser == true) {
-        await _updateUserProfile(
+        print('Google user data:');
+        print('- Display name: ${googleUser.displayName}');
+        print('- Email: ${googleUser.email}');
+        print('- Photo URL: ${googleUser.photoUrl}');
+        
+        await _createUserDataForGoogleSignIn(
+          userId: userCredential.user!.uid,
+          googlePhotoURL: googleUser.photoUrl,
           displayName: googleUser.displayName,
-          photoURL: googleUser.photoUrl,
         );
       }
       
@@ -81,6 +91,65 @@ class AuthService {
     } catch (e) {
       print('Error signing in with Google: $e');
       return null;
+    }
+  }
+
+  /// Create user data for new Google sign-in users
+  Future<void> _createUserDataForGoogleSignIn({
+    required String userId,
+    String? googlePhotoURL,
+    String? displayName,
+  }) async {
+    try {
+      print('Creating user data with displayName: "$displayName"');
+      
+      // Better fallback: use email prefix if no display name
+      String finalDisplayName = displayName ?? 'User';
+      if (displayName == null || displayName.isEmpty) {
+        final email = _auth.currentUser?.email;
+        if (email != null && email.isNotEmpty) {
+          // Use email prefix (before @) as display name
+          finalDisplayName = email.split('@')[0];
+          print('Using email prefix as display name: $finalDisplayName');
+        }
+      }
+      
+      if (googlePhotoURL == null || googlePhotoURL.isEmpty) {
+        // No photo from Google, just create user data with display name
+        await _createUserData(userId, finalDisplayName);
+        return;
+      }
+
+      print('Using Google profile photo URL directly for user: $userId');
+      print('Google photo URL: $googlePhotoURL');
+
+      // Create user data with Google photo URL (no copying)
+      await _createUserData(userId, finalDisplayName, googlePhotoURL);
+
+    } catch (e) {
+      print('Error creating user data for Google sign-in: $e');
+      // Fallback to creating user data without photo
+      await _createUserData(userId, displayName ?? 'User');
+    }
+  }
+
+  /// Create user data in centralized system
+  Future<void> _createUserData(String userId, String displayName, [String? photoURL]) async {
+    try {
+      final userData = UserData(
+        id: userId,
+        displayName: displayName,
+        photoURL: photoURL,
+        email: _auth.currentUser?.email,
+        createdAt: DateTime.now(),
+        lastUpdated: DateTime.now(),
+      );
+      
+      await _userService.createOrUpdateUser(userData);
+      print('Created user data for: $userId');
+      
+    } catch (e) {
+      print('Error creating user data: $e');
     }
   }
 
@@ -146,7 +215,15 @@ class AuthService {
   // Update user display name
   Future<void> updateDisplayName(String displayName) async {
     try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) throw Exception('No authenticated user');
+      
+      // Update Firebase Auth
       await _auth.currentUser?.updateDisplayName(displayName);
+      
+      // Update centralized user data
+      await _userService.updateUserDisplayName(userId, displayName);
+      
     } catch (e) {
       print('Error updating display name: $e');
       throw e;
@@ -156,7 +233,15 @@ class AuthService {
   // Update user photo URL
   Future<void> updatePhotoURL(String photoURL) async {
     try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) throw Exception('No authenticated user');
+      
+      // Update Firebase Auth
       await _auth.currentUser?.updatePhotoURL(photoURL);
+      
+      // Update centralized user data
+      await _userService.updateUserPhotoURL(userId, photoURL);
+      
     } catch (e) {
       print('Error updating photo URL: $e');
       throw e;
@@ -195,14 +280,40 @@ class AuthService {
 
   // Legacy methods for email/password (keeping for compatibility)
   Future<UserCredential> signIn(String email, String password) async {
-    return await _auth.signInWithEmailAndPassword(email: email, password: password);
+    final userCredential = await _auth.signInWithEmailAndPassword(email: email, password: password);
+    
+    // Ensure user data exists in centralized system for existing users
+    final userId = userCredential.user?.uid;
+    if (userId != null) {
+      try {
+        // Try to get existing user data
+        await _userService.getUserData(userId);
+        print('User data already exists for: $userId');
+      } catch (e) {
+        // User data doesn't exist, create it
+        print('Creating user data for existing email/password user: $userId');
+        await _createUserData(
+          userId, 
+          userCredential.user?.displayName ?? 'User',
+          userCredential.user?.photoURL,
+        );
+      }
+    }
+    
+    return userCredential;
   }
 
   Future<UserCredential> register(String email, String password, String displayName) async {
     final userCredential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
     
-    // Update display name (now required)
+    // Update display name in Firebase Auth
     await _updateUserProfile(displayName: displayName);
+    
+    // Create user data in centralized system
+    final userId = userCredential.user?.uid;
+    if (userId != null) {
+      await _createUserData(userId, displayName);
+    }
     
     return userCredential;
   }

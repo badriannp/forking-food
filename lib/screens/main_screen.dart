@@ -12,7 +12,11 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _selectedIndex = 0;
+  // Folosim PageStorage pentru a păstra indexul selectat
+  static const String _storageKey = 'main_screen_selected_index';
+  
+  // Inițializăm cu valoarea salvată sau 0 dacă nu există
+  int get _selectedIndex => PageStorage.of(context).readState(context, identifier: _storageKey) ?? 0;
 
   late final List<Widget> _screens;
 
@@ -22,19 +26,21 @@ class _MainScreenState extends State<MainScreen> {
     _screens = [
       const HomeScreen(),
       AddRecipeScreen(onRecipeAdded: () {
-        setState(() {
-          _selectedIndex = 2; // Profile tab
-        });
+        _updateSelectedIndex(2); // Profile tab
       }),
       const ProfileScreen(),
     ];
   }
 
+  void _updateSelectedIndex(int index) {
+    // Salvăm indexul în PageStorage
+    PageStorage.of(context).writeState(context, index, identifier: _storageKey);
+    setState(() {});
+  }
+
   void _onItemTapped(int index) {
     FocusScope.of(context).unfocus();
-    setState(() {
-      _selectedIndex = index;
-    });
+    _updateSelectedIndex(index);
   }
 
   @override
