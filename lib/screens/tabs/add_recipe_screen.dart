@@ -7,6 +7,7 @@ import 'package:forking/models/recipe.dart';
 import 'package:forking/services/recipe_service.dart';
 import 'package:flutter/services.dart';
 import 'package:forking/services/auth_service.dart';
+import 'package:image_cropper/image_cropper.dart';
 
 class AddRecipeScreen extends StatefulWidget {
   final VoidCallback? onRecipeAdded;
@@ -114,10 +115,36 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     );
 
     if (pickedFile != null) {
-      setState(() {
-        _pickedImage = File(pickedFile.path);
-        _showImageError = false; // Clear error when image is selected
-      });
+      // Crop image to 4:3 aspect ratio
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: pickedFile.path,
+        aspectRatio: const CropAspectRatio(ratioX: 2, ratioY: 3),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop Recipe Photo',
+            toolbarColor: Theme.of(context).colorScheme.primary,
+            toolbarWidgetColor: Colors.white,
+            lockAspectRatio: true,
+            initAspectRatio: CropAspectRatioPreset.ratio4x3,
+            hideBottomControls: false,
+            showCropGrid: true,
+          ),
+          IOSUiSettings(
+            title: 'Crop Recipe Photo',
+            aspectRatioLockEnabled: true,
+            aspectRatioPickerButtonHidden: true,
+            resetAspectRatioEnabled: false,
+            rotateButtonsHidden: true,
+            rotateClockwiseButtonHidden: true,
+          ),
+        ],
+      );
+      if (croppedFile != null) {
+        setState(() {
+          _pickedImage = File(croppedFile.path);
+          _showImageError = false;
+        });
+      }
     }
   }
 
@@ -372,7 +399,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        
+        resetForm();
         // Go to Profile tab if callback exists
         if (widget.onRecipeAdded != null) {
           widget.onRecipeAdded!();
@@ -396,6 +423,83 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     }
   }
 
+  void resetForm() {
+    setState(() {
+      _titleController.clear();
+      _descriptionController.clear();
+      _ingredientController.clear();
+      _tagController.clear();
+      _pickedImage = null;
+      _totalHours = 0;
+      _totalMinutes = 0;
+      _selectedTags.clear();
+      _ingredients.clear();
+      _instructions.clear();
+      _instructionControllers.forEach((c) => c.dispose());
+      _instructionControllers.clear();
+      _instructionFocuses.forEach((f) => f.dispose());
+      _instructionFocuses.clear();
+      _showInstructionErrors.clear();
+      _selectedCriteria.clear();
+      _showImageError = false;
+      _showTimeError = false;
+      _showTagsError = false;
+      _showIngredientsError = false;
+      _showTitleError = false;
+      _showDescriptionError = false;
+      _tagInput = '';
+      _instructions.add(InstructionStep(description: ''));
+      _instructionControllers.add(TextEditingController());
+      _instructionFocuses.add(FocusNode());
+      _showInstructionErrors.add(false);
+    });
+  }
+
+  Future<bool> _showConfirmDialog(String content, String confirmText) async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(content),
+        actions: [
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(false),
+          ),
+          TextButton(
+            child: Text(confirmText),
+            onPressed: () => Navigator.of(context).pop(true),
+          ),
+        ],
+      ),
+    ) ?? false;
+  }
+
+  bool get _hasRecipeDataToClear {
+    return _titleController.text.isNotEmpty ||
+      _descriptionController.text.isNotEmpty ||
+      _ingredientController.text.isNotEmpty ||
+      _tagController.text.isNotEmpty ||
+      _pickedImage != null ||
+      _totalHours > 0 ||
+      _totalMinutes > 0 ||
+      _selectedTags.isNotEmpty ||
+      _ingredients.isNotEmpty ||
+      _instructions.length > 1 ||
+      _instructions.first.description.isNotEmpty ||
+      _selectedCriteria.isNotEmpty;
+  }
+
+  void _onClearPressed() async {
+    if (!_hasRecipeDataToClear) return;
+    final confirmed = await _showConfirmDialog(
+      'Clear recipe?',
+      'Clear',
+    );
+    if (confirmed) {
+      resetForm();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -416,6 +520,18 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
             fontSize: 28,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              Icons.delete_outline,
+              color: _hasRecipeDataToClear
+                ? Theme.of(context).colorScheme.error
+                : Theme.of(context).colorScheme.onSurface.withOpacity(0.2),
+            ),
+            tooltip: 'Clear Recipe',
+            onPressed: _hasRecipeDataToClear ? _onClearPressed : null,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -443,6 +559,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                   errorText: _showTitleError ? 'Please enter a title' : null,
                 ),
                 onChanged: (value) {
+                  setState(() {});
                   if (_showTitleError && value.trim().isNotEmpty) {
                     setState(() => _showTitleError = false);
                   }
@@ -470,6 +587,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                 ),
                 maxLines: 3,
                 onChanged: (value) {
+                  setState(() {});
                   if (_showDescriptionError && value.trim().isNotEmpty) {
                     setState(() => _showDescriptionError = false);
                   }
