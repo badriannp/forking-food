@@ -71,14 +71,15 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      // For now, use a placeholder user ID - in real app, get from AuthService
+
       final String? userId = _authService.userId;
       if (userId == null) return;
       
-      RecipePaginationResult result = await _recipeService.getRecipesForSwipe(
+      RecipePaginationResult result = await _recipeService.getRecipesForFeed(
         userId: userId,
         limit: 20,
         dietaryCriteria: selectedDietaryCriteria.isNotEmpty ? selectedDietaryCriteria.toList() : null,
+        minTime: minTime.inMinutes != -1 ? minTime : null,
         maxTime: maxTime.inMinutes != -1 ? maxTime : null,
       );
 
@@ -111,11 +112,12 @@ class _HomeScreenState extends State<HomeScreen> {
       final String? userId = _authService.userId;
       if (userId == null) return;
       
-      RecipePaginationResult result = await _recipeService.getRecipesForSwipe(
+      RecipePaginationResult result = await _recipeService.getRecipesForFeed(
         userId: userId,
         lastDocument: lastDocument,
         limit: 20,
         dietaryCriteria: selectedDietaryCriteria.isNotEmpty ? selectedDietaryCriteria.toList() : null,
+        minTime: minTime.inMinutes != -1 ? minTime : null,
         maxTime: maxTime.inMinutes != -1 ? maxTime : null,
       );
 
@@ -158,10 +160,11 @@ class _HomeScreenState extends State<HomeScreen> {
       final String? userId = _authService.userId;
       if (userId == null) return;
       
-      RecipePaginationResult result = await _recipeService.getRecipesForSwipe(
+      RecipePaginationResult result = await _recipeService.getRecipesForFeed(
         userId: userId,
         limit: 20,
         dietaryCriteria: selectedDietaryCriteria.isNotEmpty ? selectedDietaryCriteria.toList() : null,
+        minTime: minTime.inMinutes != -1 ? minTime : null,
         maxTime: maxTime.inMinutes != -1 ? maxTime : null,
       );
 
@@ -332,6 +335,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showFilterModal() {
+    // Salvează starea curentă a filtrelor
+    final prevDietary = Set<String>.from(selectedDietaryCriteria);
+    final prevMinTime = minTime;
+    final prevMaxTime = maxTime;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -340,7 +348,14 @@ class _HomeScreenState extends State<HomeScreen> {
       enableDrag: true,
       builder: (context) => _buildFilterBottomSheet(),
     ).then((result) {
-      // Modal closed - no action needed as filters are applied automatically
+      // Dacă userul nu a apăsat Apply, revino la starea anterioară
+      if (result != 'apply') {
+        setState(() {
+          selectedDietaryCriteria = prevDietary;
+          minTime = prevMinTime;
+          maxTime = prevMaxTime;
+        });
+      }
     });
   }
 
@@ -560,7 +575,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () async {
-                      Navigator.pop(context);
+                      Navigator.pop(context, 'apply');
                       await _reloadRecipesWithFilters();
                     },
                     style: ElevatedButton.styleFrom(
@@ -569,13 +584,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: Text(
-                      'Apply Filters (${recipesToShow.length} recipes)',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    child: const Text(
+                      'Apply Filters',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),
               ),
+              const SizedBox(height: 12),
             ],
           ),
         );

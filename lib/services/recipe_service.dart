@@ -283,6 +283,74 @@ class RecipeService {
       throw Exception('Failed to update user recipes: $e');
     }
   }
+
+  Future<RecipePaginationResult> getRecipesForFeed({
+    required String userId,
+    DocumentSnapshot? lastDocument,
+    int limit = 20,
+    List<String>? dietaryCriteria,
+    Duration? minTime,
+    Duration? maxTime,
+  }) async {
+    try {
+      // 1. Load the IDs of recipes already swiped by the user
+      final swipesDoc = await _firestore.collection('swipes').doc(userId).get();
+      Set<String> swipedIds = {};
+      if (swipesDoc.exists && swipesDoc.data() != null && swipesDoc.data()!['swipedRecipes'] != null) {
+        swipedIds = Set<String>.from((swipesDoc.data()!['swipedRecipes'] as Map).keys);
+      }
+
+      // 2. Build the query for recipes (exclude own recipes, filters)
+      Query query = _firestore.collection('recipes')
+          .where('creatorId', isNotEqualTo: userId);
+
+      // Time filters
+      if (minTime != null && maxTime != null) {
+        query = query.where('totalEstimatedTime', isGreaterThanOrEqualTo: minTime.inSeconds)
+                     .where('totalEstimatedTime', isLessThanOrEqualTo: maxTime.inSeconds);
+      } else if (minTime != null) {
+        query = query.where('totalEstimatedTime', isGreaterThanOrEqualTo: minTime.inSeconds);
+      } else if (maxTime != null) {
+        query = query.where('totalEstimatedTime', isLessThanOrEqualTo: maxTime.inSeconds);
+      }
+
+      query = query.orderBy('createdAt', descending: true);
+      if (lastDocument != null) {
+        query = query.startAfterDocument(lastDocument);
+      }
+      query = query.limit(limit);
+
+      // 3. Execute the query
+      QuerySnapshot snapshot = await query.get();
+
+      // 4. Local filter: exclude recipes already swiped and filter by dietary criteria (AND logic)
+      List<Recipe> recipes = snapshot.docs.map((doc) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id;
+        return Recipe.fromMap(data);
+      })
+      .where((r) => !swipedIds.contains(r.id))
+      .where((r) => dietaryCriteria == null || dietaryCriteria.isEmpty || dietaryCriteria.every((tag) => r.dietaryCriteria.contains(tag)))
+      .toList();
+
+      DocumentSnapshot? newLastDocument = snapshot.docs.isNotEmpty 
+          ? snapshot.docs.last 
+          : null;
+
+      return RecipePaginationResult(
+        recipes: recipes,
+        lastDocument: newLastDocument,
+        hasMore: snapshot.docs.length == limit,
+      );
+    } catch (e) {
+      print('Error getting recipes for feed: $e');
+      return RecipePaginationResult(
+        recipes: [],
+        lastDocument: null,
+        hasMore: false,
+      );
+    }
+  }
 }
 
 /// Result class for pagination
