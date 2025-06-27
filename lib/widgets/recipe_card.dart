@@ -11,6 +11,20 @@ class RecipeCard extends StatelessWidget {
     required this.constraints,
   });
 
+  /// Format time duration
+  String _formatDuration(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes % 60;
+    
+    if (hours > 0 && minutes > 0) {
+      return '${hours}h ${minutes}min';
+    } else if (hours > 0) {
+      return '${hours}h';
+    } else {
+      return '${minutes}min';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -81,31 +95,31 @@ class RecipeCard extends StatelessWidget {
                               ),
                             ),
                             // Fork-in count (likes)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.3),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.restaurant,
-                                    size: 14,
-                                    color: Colors.white.withAlpha(220),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    recipe.forkInCount.toString(),
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Colors.white.withAlpha(220),
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                            // Container(
+                            //   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            //   decoration: BoxDecoration(
+                            //     color: Colors.black.withOpacity(0.3),
+                            //     borderRadius: BorderRadius.circular(12),
+                            //   ),
+                            //   child: Row(
+                            //     mainAxisSize: MainAxisSize.min,
+                            //     children: [
+                            //       Icon(
+                            //         Icons.restaurant,
+                            //         size: 14,
+                            //         color: Colors.white.withAlpha(220),
+                            //       ),
+                            //       const SizedBox(width: 4),
+                            //       Text(
+                            //         recipe.forkInCount.toString(),
+                            //         style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            //           color: Colors.white.withAlpha(220),
+                            //           fontWeight: FontWeight.w500,
+                            //         ),
+                            //       ),
+                            //     ],
+                            //   ),
+                            // ),
                           ],
                         ),
                         const SizedBox(height: 8),
@@ -163,7 +177,7 @@ class RecipeCard extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    '${recipe.totalEstimatedTime.inMinutes} min',
+                                    _formatDuration(recipe.totalEstimatedTime),
                                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                       color: Colors.white.withAlpha(220),
                                       fontWeight: FontWeight.w500,
