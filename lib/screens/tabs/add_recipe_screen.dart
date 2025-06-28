@@ -78,6 +78,8 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   ];
   List<String> _selectedCriteria = [];
 
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
@@ -127,7 +129,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     }
   }
 
-  /// Add a new tag to database and local list
+  /// Add a new tag to local list (will be uploaded when recipe is saved)
   Future<void> _addNewTag(String tag) async {
     if (tag.trim().isEmpty) return;
     
@@ -135,10 +137,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     if (_selectedTags.contains(cleanTag)) return;
     
     try {
-      // Add to database
-      await _recipeService.addTag(cleanTag);
-      
-      // Add to local lists
+      // Add to local lists only (not to database yet)
       setState(() {
         _selectedTags.add(cleanTag);
         if (!_allTags.contains(cleanTag)) {
@@ -174,6 +173,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     _descriptionFocus.dispose();
     _tagFocus.dispose();
     _ingredientFocus.dispose();
+    _scrollController.dispose();
     for (var controller in _instructionControllers) {
       controller.dispose();
     }
@@ -352,36 +352,43 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
 
   Future<void> _saveRecipe() async {
     if (!_formKey.currentState!.validate()) {
+      _scrollToInvalidField();
       return;
     }
 
     if (_pickedImage == null) {
       setState(() => _showImageError = true);
+      _scrollToInvalidField();
       return;
     }
 
     if (_titleController.text.trim().isEmpty) {
       setState(() => _showTitleError = true);
+      _scrollToInvalidField();
       return;
     }
 
     if (_descriptionController.text.trim().isEmpty) {
       setState(() => _showDescriptionError = true);
+      _scrollToInvalidField();
       return;
     }
 
     if (_totalHours == 0 && _totalMinutes == 0) {
       setState(() => _showTimeError = true);
+      _scrollToInvalidField();
       return;
     }
 
     if (_selectedTags.isEmpty) {
       setState(() => _showTagsError = true);
+      _scrollToInvalidField();
       return;
     }
 
     if (_ingredients.isEmpty) {
       setState(() => _showIngredientsError = true);
+      _scrollToInvalidField();
       return;
     }
 
@@ -391,7 +398,21 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
       setState(() {
         _showInstructionErrors.fillRange(0, _showInstructionErrors.length, true);
       });
+      _scrollToInvalidField();
       return;
+    }
+
+    // Check for steps with images but no description
+    for (int i = 0; i < _instructions.length; i++) {
+      final step = _instructions[i];
+      if ((step.mediaUrl != null && step.mediaUrl!.isNotEmpty) || 
+          (step.localMediaFile != null) && step.description.trim().isEmpty) {
+        setState(() {
+          _showInstructionErrors[i] = true;
+        });
+        _scrollToInvalidField();
+        return;
+      }
     }
 
     setState(() {
@@ -414,6 +435,19 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
       
       if (userId == null || displayName == null) {
         throw Exception('User not authenticated');
+      }
+
+      // Upload new tags to database first
+      for (String tag in _selectedTags) {
+        if (!_allTags.contains(tag)) {
+          try {
+            await _recipeService.addTag(tag);
+            print('Uploaded new tag: $tag');
+          } catch (e) {
+            print('Failed to upload tag $tag: $e');
+            // Continue with recipe upload even if tag upload fails
+          }
+        }
       }
 
       final recipe = Recipe(
@@ -550,6 +584,65 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     }
   }
 
+  /// Scroll to the first invalid field
+  void _scrollToInvalidField() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_showTitleError) {
+        _scrollToWidget(_titleFocus);
+      } else if (_showDescriptionError) {
+        _scrollToWidget(_descriptionFocus);
+      } else if (_showImageError) {
+        // Scroll to image section
+        _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      } else if (_showTimeError) {
+        // Scroll to time section
+        _scrollController.animateTo(
+          200,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      } else if (_showTagsError) {
+        _scrollToWidget(_tagFocus);
+      } else if (_showIngredientsError) {
+        _scrollToWidget(_ingredientFocus);
+      } else if (_showInstructionErrors.any((error) => error)) {
+        // Find the first step with error and scroll to it
+        final errorIndex = _showInstructionErrors.indexWhere((error) => error);
+        if (errorIndex >= 0 && errorIndex < _instructionFocuses.length) {
+          _scrollToWidget(_instructionFocuses[errorIndex]);
+        } else {
+          // Fallback to instructions section
+          _scrollController.animateTo(
+            400,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+          );
+        }
+      }
+    });
+  }
+
+  /// Scroll to a specific widget
+  void _scrollToWidget(FocusNode focusNode) {
+    focusNode.requestFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final RenderBox? renderBox = focusNode.context?.findRenderObject() as RenderBox?;
+      if (renderBox != null) {
+        final position = renderBox.localToGlobal(Offset.zero);
+        final offset = position.dy - 100; // Offset for better visibility
+        _scrollController.animateTo(
+          _scrollController.offset + offset,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -586,6 +679,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
       body: SingleChildScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.all(20.0),
+        controller: _scrollController,
         child: Form(
           key: _formKey,
           child: Column(
@@ -975,7 +1069,11 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                 hintStyle: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface.withAlpha((0.3 * 255).toInt()),
                 ),
-                errorText: _showInstructionErrors[index] ? 'Step cannot be empty' : null,
+                errorText: _showInstructionErrors[index] 
+                    ? (step.localMediaFile != null || (step.mediaUrl != null && step.mediaUrl!.isNotEmpty))
+                        ? 'Step with image must have a description'
+                        : 'Step cannot be empty'
+                    : null,
               ),
               onChanged: (value) {
                 _updateInstructionDescription(index, value);
