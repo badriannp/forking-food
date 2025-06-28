@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/main_screen.dart';
+import 'screens/splash_screen.dart';
 import 'utils/constants.dart';
 import 'services/auth_service.dart';
 
@@ -81,49 +82,30 @@ class MyApp extends StatelessWidget {
 class AppEntryPoint extends StatelessWidget {
   const AppEntryPoint({super.key});
 
+  Future<void> _initializeApp() async {
+    // Initialize Firebase
+    await Firebase.initializeApp();
+    
+    // Add a delay for splash screen visibility
+    await Future.delayed(const Duration(milliseconds: 2000));
+  }
+
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: Firebase.initializeApp(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Initializing...'),
-                ],
-              ),
-            ),
-          );
-        }
-        if (snapshot.hasError) {
-          return Scaffold(
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error, size: 64, color: Colors.red),
-                  SizedBox(height: 16),
-                  Text('Failed to initialize Firebase'),
-                  SizedBox(height: 8),
-                  Text('Error: ${snapshot.error}', textAlign: TextAlign.center),
-                ],
-              ),
-            ),
-          );
-        }
-        // Firebase is initialized, now check auth state
-        final authService = AuthService();
-        if (authService.isSignedIn) {
-          return const MainScreen();
-        } else {
-          return const WelcomeScreen();
-        }
-      },
+    return SplashScreen(
+      initialization: _initializeApp,
+      child: FutureBuilder(
+        future: Future.value(), // Firebase already initialized
+        builder: (context, snapshot) {
+          // Check auth state
+          final authService = AuthService();
+          if (authService.isSignedIn) {
+            return const MainScreen();
+          } else {
+            return const WelcomeScreen();
+          }
+        },
+      ),
     );
   }
 }

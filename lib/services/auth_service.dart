@@ -4,7 +4,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:image/image.dart' as img;
-import 'package:http/http.dart' as http;
 import '../models/user_data.dart';
 import 'user_service.dart';
 
