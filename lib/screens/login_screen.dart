@@ -19,6 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailFocus = FocusNode();
   final _passwordFocus = FocusNode();
   String? _firebaseError;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -50,6 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin() async {
     setState(() {
       _firebaseError = null;
+      _isLoading = true;
     });
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) {
@@ -78,6 +80,11 @@ class _LoginScreenState extends State<LoginScreen> {
           _firebaseError = 'Login failed. Please try again.';
         });
       }
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -188,7 +195,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: _handleLogin,
+                          onPressed: _isLoading ? null : _handleLogin,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: theme.colorScheme.primary,
                             foregroundColor: theme.colorScheme.onPrimary,
@@ -202,7 +209,16 @@ class _LoginScreenState extends State<LoginScreen> {
                               letterSpacing: -0.1,
                             ),
                           ),
-                          child: const Text('Login'),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : const Text('Login'),
                         ),
                       ),
                       const SizedBox(height: 16),

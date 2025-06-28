@@ -20,6 +20,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailFocus = FocusNode();
   final _passwordFocus = FocusNode();
   String? _firebaseEmailError;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -68,9 +69,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _handleRegister() async {
     setState(() {
       _firebaseEmailError = null;
+      _isLoading = true;
     });
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = false;
+      });
       return;
     }
     final authService = AuthService();
@@ -101,6 +106,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Registration failed. Please try again.')),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -214,7 +225,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: _handleRegister,
+                          onPressed: _isLoading ? null : _handleRegister,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: theme.colorScheme.primary,
                             foregroundColor: theme.colorScheme.onPrimary,
@@ -228,7 +239,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               letterSpacing: -0.1,
                             ),
                           ),
-                          child: const Text('Register'),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : const Text('Register'),
                         ),
                       ),
                       const SizedBox(height: 16),
