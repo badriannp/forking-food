@@ -16,95 +16,86 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateMixin {
   final AuthService _authService = AuthService();
   final RecipeService _recipeService = RecipeService();
+  
+  late TabController _tabController;
+  List<Recipe> _myRecipes = [];
+  List<Recipe> _savedRecipes = [];
+  bool _isLoading = true;
   bool _isEditingName = false;
+  bool _isUpdatingProfileImage = false;
   final TextEditingController _nameController = TextEditingController();
   final FocusNode _nameFocus = FocusNode();
 
-  // Recipe loading state
-  List<Recipe> _myRecipes = [];
-  List<Recipe> _savedRecipes = [];
-  bool _isLoadingMyRecipes = false;
-  bool _isLoadingSavedRecipes = false;
-  
-  // Profile image loading state
-  bool _isUpdatingProfileImage = false;
+  // Calculate total fork-ins from all user recipes
+  int get _totalForkIns {
+    return _myRecipes.fold(0, (sum, recipe) => sum + recipe.forkInCount);
+  }
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    
     // Initialize with current user's display name or empty string
     final currentName = _authService.userDisplayName;
     _nameController.text = currentName ?? '';
     
-    // Load recipes only if not already loaded
-    if (_myRecipes.isEmpty && _savedRecipes.isEmpty && !_isLoadingMyRecipes && !_isLoadingSavedRecipes) {
-      _loadMyRecipes();
-      _loadSavedRecipes();
-    }
+    // Load recipes
+    _loadRecipes();
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _nameController.dispose();
     _nameFocus.dispose();
     super.dispose();
   }
 
   /// Load user's own recipes
-  Future<void> _loadMyRecipes() async {
+  Future<void> _loadRecipes() async {
     setState(() {
-      _isLoadingMyRecipes = true;
+      _isLoading = true;
     });
 
     try {
       final String? userId = _authService.userId;
+      print('Loading recipes for userId: $userId');
+      
       if (userId != null) {
-        final recipes = await _recipeService.getUserRecipes(userId);
+        // Load both my recipes and saved recipes
+        final results = await Future.wait([
+          _recipeService.getUserRecipes(userId),
+          _recipeService.getSavedRecipes(userId),
+        ]);
+        
+        print('Loaded ${results[0].length} my recipes and ${results[1].length} saved recipes');
+        
         setState(() {
-          _myRecipes = recipes;
-          _isLoadingMyRecipes = false;
+          _myRecipes = results[0];
+          _savedRecipes = results[1];
+          _isLoading = false;
+        });
+      } else {
+        print('UserId is null - user not authenticated');
+        setState(() {
+          _isLoading = false;
         });
       }
     } catch (e) {
-      print('Error loading my recipes: $e');
+      print('Error loading recipes: $e');
       setState(() {
-        _isLoadingMyRecipes = false;
-      });
-    }
-  }
-
-  /// Load saved recipes (swiped right)
-  Future<void> _loadSavedRecipes() async {
-    setState(() {
-      _isLoadingSavedRecipes = true;
-    });
-
-    try {
-      final String? userId = _authService.userId;
-      if (userId != null) {
-        final recipes = await _recipeService.getSavedRecipes(userId);
-        setState(() {
-          _savedRecipes = recipes;
-          _isLoadingSavedRecipes = false;
-        });
-      }
-    } catch (e) {
-      print('Error loading saved recipes: $e');
-      setState(() {
-        _isLoadingSavedRecipes = false;
+        _isLoading = false;
       });
     }
   }
 
   /// Refresh both recipe lists
   Future<void> _refreshRecipes() async {
-    await Future.wait([
-      _loadMyRecipes(),
-      _loadSavedRecipes(),
-    ]);
+    await _loadRecipes();
   }
 
   Future<void> _pickProfileImage() async {
@@ -336,7 +327,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await _recipeService.deleteRecipe(recipe.id, userId);
 
       // Refresh recipes
-      await _refreshRecipes();
+      await _loadRecipes();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -360,70 +351,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          centerTitle: true,
-          scrolledUnderElevation: 0,
-          shadowColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-          backgroundColor: Colors.transparent,
-          systemOverlayStyle: SystemUiOverlayStyle.dark,
-          elevation: 0,
-          title: Text(
-            'Forking',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontFamily: 'EduNSWACTHand',
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.primary,
-              fontSize: 28,
-            ),
+    return Scaffold(
+      appBar: AppBar(
+        centerTitle: true,
+        scrolledUnderElevation: 0,
+        shadowColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        backgroundColor: Colors.transparent,
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
+        elevation: 0,
+        title: Text(
+          'Forking',
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            fontFamily: 'EduNSWACTHand',
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).colorScheme.primary,
+            fontSize: 28,
           ),
-          actions: [
-            IconButton(
-              icon: Icon(
-                Icons.logout,
-                color: Theme.of(context).colorScheme.primary,
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              Icons.logout,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            onPressed: _signOut,
+          ),
+        ],
+      ),
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return [
+            SliverToBoxAdapter(child: _buildProfileHeader(context)),
+            SliverPersistentHeader(
+              delegate: _SliverAppBarDelegate(
+                TabBar(
+                  controller: _tabController,
+                  labelColor: Theme.of(context).colorScheme.primary,
+                  unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withAlpha(150),
+                  indicatorColor: Theme.of(context).colorScheme.primary,
+                  tabs: const [
+                    Tab(text: 'My Recipes'),
+                    Tab(text: 'Saved'),
+                  ],
+                ),
               ),
-              onPressed: _signOut,
+              pinned: true,
+            ),
+          ];
+        },
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            // Grid for "My Recipes" with pull-to-refresh
+            RefreshIndicator(
+              onRefresh: _refreshRecipes,
+              child: _buildRecipesGrid(),
+            ),
+            // Grid for "Saved" recipes with pull-to-refresh
+            RefreshIndicator(
+              onRefresh: _refreshRecipes,
+              child: _buildRecipesGrid(isSaved: true),
             ),
           ],
-        ),
-        body: NestedScrollView(
-          headerSliverBuilder: (context, innerBoxIsScrolled) {
-            return [
-              SliverToBoxAdapter(child: _buildProfileHeader(context)),
-              SliverPersistentHeader(
-                delegate: _SliverAppBarDelegate(
-                  TabBar(
-                    labelColor: Theme.of(context).colorScheme.primary,
-                    unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withAlpha(150),
-                    indicatorColor: Theme.of(context).colorScheme.primary,
-                    tabs: const [
-                      Tab(text: 'My Recipes'),
-                      Tab(text: 'Saved'),
-                    ],
-                  ),
-                ),
-                pinned: true,
-              ),
-            ];
-          },
-          body: TabBarView(
-            children: [
-              // Grid for "My Recipes" with pull-to-refresh
-              RefreshIndicator(
-                onRefresh: _refreshRecipes,
-                child: _buildRecipesGrid(),
-              ),
-              // Grid for "Saved" recipes with pull-to-refresh
-              RefreshIndicator(
-                onRefresh: _refreshRecipes,
-                child: _buildRecipesGrid(isSaved: true),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -567,8 +557,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    _buildStatFlex(context, Icons.favorite_border, _savedRecipes.length.toString()),
-                    _buildStatFlex(context, Icons.receipt_long, _myRecipes.length.toString()),
+                    _buildStatFlex(context, Icons.kitchen, _myRecipes.length.toString(), 'Recipes'),
+                    _buildStatFlex(context, Icons.fork_left, _totalForkIns.toString(), 'Fork-ins'),
                   ],
                 ),
               ],
@@ -579,20 +569,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatFlex(BuildContext context, IconData icon, String value) {
+  Widget _buildStatFlex(BuildContext context, IconData icon, String value, String label) {
     final color = Theme.of(context).colorScheme.onSurface.withAlpha(200);
     return Expanded(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 17),
-          const SizedBox(width: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(icon, color: color, size: 17),
+              const SizedBox(width: 6),
+              Text(
+                value,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
           Text(
-            value,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w600,
-              fontSize: 15,
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: color.withAlpha(150),
+              fontSize: 11,
             ),
           ),
         ],
@@ -602,7 +605,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildRecipesGrid({bool isSaved = false}) {
     final recipes = isSaved ? _savedRecipes : _myRecipes;
-    final isLoading = isSaved ? _isLoadingSavedRecipes : _isLoadingMyRecipes;
+    final isLoading = _isLoading;
 
     if (isLoading) {
       return const Center(
@@ -611,37 +614,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     if (recipes.isEmpty) {
-      return SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: Container(
-          height: MediaQuery.of(context).size.height * 0.8, // Increased height for better pull-to-refresh
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  isSaved ? Icons.favorite_border : Icons.restaurant_menu_outlined,
-                  size: 64,
-                  color: Theme.of(context).colorScheme.onSurface.withAlpha(75),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  isSaved ? 'No saved recipes yet' : 'No recipes posted yet',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
+      return RefreshIndicator(
+        onRefresh: _refreshRecipes,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.6,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    isSaved ? Icons.favorite_border : Icons.kitchen,
+                    size: 48,
+                    color: Theme.of(context).colorScheme.onSurface.withAlpha(75),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  isSaved 
-                    ? 'Swipe right on recipes you like to save them here'
-                    : 'Start sharing your recipes with the community!',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withAlpha(128),
+                  const SizedBox(height: 12),
+                  Text(
+                    isSaved ? 'No saved recipes yet' : 'No recipes posted yet',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
+                    ),
                   ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+                  const SizedBox(height: 6),
+                  Text(
+                    isSaved 
+                      ? 'Swipe right on recipes you like to save them here'
+                      : 'Start sharing your recipes with the community!',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withAlpha(128),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
