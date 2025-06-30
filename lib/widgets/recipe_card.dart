@@ -30,7 +30,8 @@ class RecipeCard extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
-      shadowColor: Theme.of(context).colorScheme.onSurface.withAlpha(50),
+      shadowColor: Colors.black.withOpacity(0.15),
+      elevation: 12,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -87,11 +88,11 @@ class RecipeCard extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                recipe.title,
-                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                          recipe.title,
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                               ),
                             ),
                             // Fork-in count (likes)
@@ -174,11 +175,11 @@ class RecipeCard extends StatelessWidget {
                                 ),
                               ),
                             ] else ...[
-                              Icon(
-                                Icons.person_outline,
-                                size: 16,
-                                color: Colors.white.withAlpha(220),
-                              ),
+                            Icon(
+                              Icons.person_outline,
+                              size: 16,
+                              color: Colors.white.withAlpha(220),
+                            ),
                             ],
                             const SizedBox(width: 4),
                             Text(
@@ -201,16 +202,16 @@ class RecipeCard extends StatelessWidget {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(
-                                    Icons.access_time,
+                            Icon(
+                              Icons.access_time,
                                     size: 12,
-                                    color: Colors.white.withAlpha(220),
-                                  ),
+                              color: Colors.white.withAlpha(220),
+                            ),
                                   const SizedBox(width: 3),
-                                  Text(
+                            Text(
                                     _formatDuration(recipe.totalEstimatedTime),
                                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Colors.white.withAlpha(220),
+                                color: Colors.white.withAlpha(220),
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -284,28 +285,28 @@ class RecipeCard extends StatelessWidget {
           if (recipe.tags.isNotEmpty) ...[
             const SizedBox(height: 16),
             Wrap(
-              spacing: 6.0,
-              runSpacing: 4.0,
-              children: recipe.tags.map((tag) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
+        spacing: 6.0,
+        runSpacing: 4.0,
+        children: recipe.tags.map((tag) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
+            border: Border.all(
                     color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
-                    width: 1,
-                  ),
-                ),
-                child: Text(
-                  tag,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              width: 1,
+            ),
+          ),
+          child: Text(
+            tag,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                  ),
-                ),
-              )).toList(),
             ),
+          ),
+        )).toList(),
+      ),
           ],
         ],
       ),

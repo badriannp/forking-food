@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:forking/screens/tabs/discover_screen.dart';
 import 'package:forking/screens/tabs/home_screen.dart';
-import 'package:forking/screens/tabs/add_recipe_screen.dart';
 import 'package:forking/screens/tabs/profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -15,8 +15,8 @@ class _MainScreenState extends State<MainScreen> {
   // Folosim PageStorage pentru a păstra indexul selectat
   static const String _storageKey = 'main_screen_selected_index';
   
-  // Inițializăm cu valoarea salvată sau 0 dacă nu există
-  int get _selectedIndex => PageStorage.of(context).readState(context, identifier: _storageKey) ?? 0;
+  // Inițializăm cu valoarea salvată sau 1 (Home tab) dacă nu există
+  int get _selectedIndex => PageStorage.of(context).readState(context, identifier: _storageKey) ?? 1;
 
   late final List<Widget> _screens;
 
@@ -24,10 +24,8 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _screens = [
+      const DiscoverScreen(),
       const HomeScreen(),
-      AddRecipeScreen(onRecipeAdded: () {
-        _updateSelectedIndex(2); // Profile tab
-      }),
       const ProfileScreen(),
     ];
   }
@@ -60,14 +58,14 @@ class _MainScreenState extends State<MainScreen> {
         indicatorColor: Theme.of(context).colorScheme.primary,
         destinations: const [
           NavigationDestination(
+            icon: Icon(Icons.explore_outlined),
+            selectedIcon: Icon(Icons.explore),
+            label: 'Discover',
+          ),
+          NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home),
             label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.add_circle_outline),
-            selectedIcon: Icon(Icons.add_circle),
-            label: 'Add',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),

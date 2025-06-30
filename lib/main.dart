@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/add_recipe_screen.dart';
 import 'utils/constants.dart';
 import 'services/auth_service.dart';
 
@@ -74,6 +75,9 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
+      routes: {
+        '/add-recipe': (context) => const AddRecipeScreen(),
+      },
       home: const AppEntryPoint(),
     );
   }

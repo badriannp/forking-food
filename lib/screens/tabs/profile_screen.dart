@@ -28,6 +28,97 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   bool _isUpdatingProfileImage = false;
   final TextEditingController _nameController = TextEditingController();
   final FocusNode _nameFocus = FocusNode();
+  
+  // Search functionality
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  // Filtered recipes based on search with prioritization
+  List<Recipe> get _filteredMyRecipes {
+    if (_searchQuery.isEmpty) return _myRecipes;
+    
+    final query = _searchQuery.toLowerCase();
+    final scoredRecipes = _myRecipes.map((recipe) {
+      int score = 0;
+      
+      // Title match (highest priority)
+      if (recipe.title.toLowerCase().contains(query)) {
+        score += 100;
+      }
+      
+      // Description match (medium priority)
+      if (recipe.description.toLowerCase().contains(query)) {
+        score += 50;
+      }
+      
+      // Ingredients match (medium priority)
+      final ingredientMatches = recipe.ingredients
+          .where((ingredient) => ingredient.toLowerCase().contains(query))
+          .length;
+      score += ingredientMatches * 30;
+      
+      // Tags match (medium priority)
+      final tagMatches = recipe.tags
+          .where((tag) => tag.toLowerCase().contains(query))
+          .length;
+      score += tagMatches * 25;
+      
+      // Dietary criteria match (lower priority)
+      final dietaryMatches = recipe.dietaryCriteria
+          .where((criteria) => criteria.toLowerCase().contains(query))
+          .length;
+      score += dietaryMatches * 20;
+      
+      return _ScoredRecipe(recipe: recipe, score: score);
+    }).where((scored) => scored.score > 0).toList();
+    
+    // Sort by score (descending) and return recipes
+    scoredRecipes.sort((a, b) => b.score.compareTo(a.score));
+    return scoredRecipes.map((scored) => scored.recipe).toList();
+  }
+
+  List<Recipe> get _filteredSavedRecipes {
+    if (_searchQuery.isEmpty) return _savedRecipes;
+    
+    final query = _searchQuery.toLowerCase();
+    final scoredRecipes = _savedRecipes.map((recipe) {
+      int score = 0;
+      
+      // Title match (highest priority)
+      if (recipe.title.toLowerCase().contains(query)) {
+        score += 100;
+      }
+      
+      // Description match (medium priority)
+      if (recipe.description.toLowerCase().contains(query)) {
+        score += 50;
+      }
+      
+      // Ingredients match (medium priority)
+      final ingredientMatches = recipe.ingredients
+          .where((ingredient) => ingredient.toLowerCase().contains(query))
+          .length;
+      score += ingredientMatches * 30;
+      
+      // Tags match (medium priority)
+      final tagMatches = recipe.tags
+          .where((tag) => tag.toLowerCase().contains(query))
+          .length;
+      score += tagMatches * 25;
+      
+      // Dietary criteria match (lower priority)
+      final dietaryMatches = recipe.dietaryCriteria
+          .where((criteria) => criteria.toLowerCase().contains(query))
+          .length;
+      score += dietaryMatches * 20;
+      
+      return _ScoredRecipe(recipe: recipe, score: score);
+    }).where((scored) => scored.score > 0).toList();
+    
+    // Sort by score (descending) and return recipes
+    scoredRecipes.sort((a, b) => b.score.compareTo(a.score));
+    return scoredRecipes.map((scored) => scored.recipe).toList();
+  }
 
   // Calculate total fork-ins from all user recipes
   int get _totalForkIns {
@@ -52,18 +143,20 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     _tabController.dispose();
     _nameController.dispose();
     _nameFocus.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
   /// Load user's own recipes
   Future<void> _loadRecipes() async {
+    if (!mounted) return;
+    
     setState(() {
       _isLoading = true;
     });
 
     try {
       final String? userId = _authService.userId;
-      print('Loading recipes for userId: $userId');
       
       if (userId != null) {
         // Load both my recipes and saved recipes
@@ -72,24 +165,27 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
           _recipeService.getSavedRecipes(userId),
         ]);
         
-        print('Loaded ${results[0].length} my recipes and ${results[1].length} saved recipes');
         
-        setState(() {
-          _myRecipes = results[0];
-          _savedRecipes = results[1];
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _myRecipes = results[0];
+            _savedRecipes = results[1];
+            _isLoading = false;
+          });
+        }
       } else {
-        print('UserId is null - user not authenticated');
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
         setState(() {
           _isLoading = false;
         });
       }
-    } catch (e) {
-      print('Error loading recipes: $e');
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
@@ -108,9 +204,11 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     );
 
     if (pickedFile != null) {
-      setState(() {
-        _isUpdatingProfileImage = true;
-      });
+      if (mounted) {
+        setState(() {
+          _isUpdatingProfileImage = true;
+        });
+      }
       
       try {
         // Crop the image first
@@ -118,9 +216,11 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         
         if (croppedFile == null) {
           // User cancelled cropping
-          setState(() {
-            _isUpdatingProfileImage = false;
-          });
+          if (mounted) {
+            setState(() {
+              _isUpdatingProfileImage = false;
+            });
+          }
           return;
         }
 
@@ -130,32 +230,35 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         final String? userId = _authService.userId;
         if (userId != null) {
           // User data is now centralized - no need to update recipes
-          print('Profile photo updated - user data centralized');
         }
         
         // Refresh the UI
-        setState(() {
-          _isUpdatingProfileImage = false;
-        });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile photo updated successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        if (mounted) {
+          setState(() {
+            _isUpdatingProfileImage = false;
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile photo updated successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
         
       } catch (e) {
-        setState(() {
-          _isUpdatingProfileImage = false;
-        });
-        
+        if (mounted) {
+          setState(() {
+            _isUpdatingProfileImage = false;
+          });
+          
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to update profile photo: ${e.toString()}'),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
+        }
       }
     }
   }
@@ -189,7 +292,6 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
       
       return croppedFile != null ? File(croppedFile.path) : null;
     } catch (e) {
-      print('Error cropping profile image: $e');
       return null;
     }
   }
@@ -202,9 +304,11 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
       
       // Check if the new name is identical to the current name
       if (newName == currentName) {
+        if (mounted) {
         setState(() {
           _isEditingName = false;
         });
+        }
         return; // No need to make Firebase call
       }
       
@@ -212,18 +316,21 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         await _authService.updateDisplayName(newName);
         
         // User data is now centralized - no need to update recipes
-        print('Display name updated - user data centralized');
         
+        if (mounted) {
         setState(() {
           _isEditingName = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Name updated successfully!')),
         );
+        }
       } catch (e) {
+        if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to update name. Please try again.')),
         );
+        }
       }
     }
   }
@@ -254,18 +361,18 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
     // If user confirmed, proceed with sign out
     if (shouldSignOut == true) {
-      try {
-        await _authService.signOut();
-        if (mounted) {
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-            (route) => false,
-          );
-        }
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error signing out. Please try again.')),
+    try {
+      await _authService.signOut();
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+          (route) => false,
         );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error signing out. Please try again.')),
+      );
       }
     }
   }
@@ -369,6 +476,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             fontSize: 28,
           ),
         ),
+        leading: null,
         actions: [
           IconButton(
             icon: Icon(
@@ -380,7 +488,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         ],
       ),
       body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
+        headerSliverBuilder: (context, innerBoxScrolled) {
           return [
             SliverToBoxAdapter(child: _buildProfileHeader(context)),
             SliverPersistentHeader(
@@ -390,6 +498,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                   labelColor: Theme.of(context).colorScheme.primary,
                   unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withAlpha(150),
                   indicatorColor: Theme.of(context).colorScheme.primary,
+                  splashFactory: NoSplash.splashFactory,
                   tabs: const [
                     Tab(text: 'My Recipes'),
                     Tab(text: 'Saved'),
@@ -406,12 +515,28 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             // Grid for "My Recipes" with pull-to-refresh
             RefreshIndicator(
               onRefresh: _refreshRecipes,
-              child: _buildRecipesGrid(),
+              child: Column(
+                children: [
+                  // Search bar for My Recipes
+                  _buildSearchBar(),
+                  Expanded(
+                    child: _buildRecipesGrid(isSaved: false),
+                  ),
+                ],
+              ),
             ),
             // Grid for "Saved" recipes with pull-to-refresh
             RefreshIndicator(
               onRefresh: _refreshRecipes,
-              child: _buildRecipesGrid(isSaved: true),
+              child: Column(
+                children: [
+                  // Search bar for Saved Recipes
+                  _buildSearchBar(),
+                  Expanded(
+                    child: _buildRecipesGrid(isSaved: true),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -459,7 +584,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                       ),
                     ),
                   ),
-                ),
+              ),
               Positioned(
                 bottom: 0,
                 right: 0,
@@ -569,6 +694,52 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     );
   }
 
+  Widget _buildSearchBar() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      height: 40,
+      // padding: const EdgeInsets.only(top: 8, left: 8, right: 8, bottom: 8),
+      child: TextField(
+        controller: _searchController,
+        onChanged: (value) {
+          setState(() {
+            _searchQuery = value;
+          });
+        },
+        
+        decoration: InputDecoration(
+          prefixIcon: Icon(
+            Icons.search,
+            size: 20,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+          ),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: Icon(
+                    Icons.clear,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                  ),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() {
+                      _searchQuery = '';
+                    });
+                  },
+                )
+              : null,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        ),
+      ),
+    );
+  }
+
   Widget _buildStatFlex(BuildContext context, IconData icon, String value, String label) {
     final color = Theme.of(context).colorScheme.onSurface.withAlpha(200);
     return Expanded(
@@ -576,16 +747,16 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Icon(icon, color: color, size: 17),
-              const SizedBox(width: 6),
-              Text(
-                value,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 17),
+          const SizedBox(width: 6),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
                 ),
               ),
             ],
@@ -604,53 +775,12 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   }
 
   Widget _buildRecipesGrid({bool isSaved = false}) {
-    final recipes = isSaved ? _savedRecipes : _myRecipes;
+    final recipes = isSaved ? _filteredSavedRecipes : _filteredMyRecipes;
     final isLoading = _isLoading;
 
     if (isLoading) {
       return const Center(
         child: CircularProgressIndicator(),
-      );
-    }
-
-    if (recipes.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: _refreshRecipes,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: SizedBox(
-            height: MediaQuery.of(context).size.height * 0.6,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    isSaved ? Icons.favorite_border : Icons.kitchen,
-                    size: 48,
-                    color: Theme.of(context).colorScheme.onSurface.withAlpha(75),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    isSaved ? 'No saved recipes yet' : 'No recipes posted yet',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    isSaved 
-                      ? 'Swipe right on recipes you like to save them here'
-                      : 'Start sharing your recipes with the community!',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withAlpha(128),
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
       );
     }
 
@@ -662,9 +792,17 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         crossAxisSpacing: 8.0,
         mainAxisSpacing: 8.0,
       ),
-      itemCount: recipes.length,
+      itemCount: isSaved ? recipes.length : recipes.length + 1, // +1 for add button
       itemBuilder: (context, index) {
-        final recipe = recipes[index];
+        // Show add button as first item for My Recipes
+        if (!isSaved && index == 0) {
+          return _buildAddRecipeCard();
+        }
+        
+        // Adjust index for recipes (skip add button)
+        final recipeIndex = isSaved ? index : index - 1;
+        final recipe = recipes[recipeIndex];
+        
         return GestureDetector(
           onTap: () {
             _showRecipeCardOverlay(context, recipe);
@@ -687,6 +825,37 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                       colors: [
                         Colors.transparent,
                         Colors.black.withAlpha(179),
+                      ],
+                    ),
+                  ),
+                ),
+                // Fork-in count in top left
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withAlpha(150),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.restaurant,
+                          size: 10,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          '${recipe.forkInCount}',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 10,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -731,14 +900,14 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        recipe.title,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                    recipe.title,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                       if (isSaved) ...[
                         const SizedBox(height: 4),
                         Row(
@@ -820,6 +989,42 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     );
   }
 
+  Widget _buildAddRecipeCard() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.pushNamed(context, '/add-recipe');
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12.0),
+          color: Colors.grey[50],
+          border: Border.all(
+            color: Colors.grey[300]!,
+            width: 1,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.add_rounded,
+              size: 64,
+              color: Colors.grey[500],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Add Recipe',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Format time duration for display
   String _formatDuration(Duration duration) {
     final hours = duration.inHours;
@@ -840,7 +1045,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+          backgroundColor: Colors.transparent,
       isDismissible: true,
       enableDrag: true,
       builder: (context) => SafeArea(
@@ -865,7 +1070,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 left: 0,
                 right: 0,
                 child: Container(
-                  height: 40,
+                  height: 65,
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
@@ -878,7 +1083,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                   ),
                   child: Center(
                     child: Container(
-                      width: 40,
+                      width: 50,
                       height: 4,
                       decoration: BoxDecoration(
                         color: Colors.white.withAlpha(200),
@@ -923,19 +1128,26 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                       ),
                       child: const Icon(
                         Icons.delete_outline,
-                        color: Colors.white,
-                        size: 24,
-                      ),
+                      color: Colors.white,
+                      size: 24,
                     ),
                   ),
                 ),
+              ),
               ],
             ],
           ),
         ),
-      ),
+          ),
     );
   }
+}
+
+class _ScoredRecipe {
+  final Recipe recipe;
+  final int score;
+  
+  _ScoredRecipe({required this.recipe, required this.score});
 }
 
 class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {

@@ -218,10 +218,10 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         ],
       );
       if (croppedFile != null) {
-        setState(() {
+      setState(() {
           _pickedImage = File(croppedFile.path);
           _showImageError = false;
-        });
+      });
       }
     }
   }
@@ -784,6 +784,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                     : const Text('Publish Recipe'),
                 ),
               ),
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -1176,12 +1177,12 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
               ),
             ),
             child: Column(
-              children: [
+            children: [
                 ..._allTags
                     .where((tag) => tag.toLowerCase().contains(_tagInput.toLowerCase()))
                     .take(5)
                     .map((tag) => ListTile(
-                          title: Text(tag),
+                    title: Text(tag),
                           leading: const Icon(Icons.tag, size: 20),
                           onTap: () {
                             if (!_selectedTags.contains(tag)) {
@@ -1197,15 +1198,15 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                               }
                             }
                           },
-                        )),
+                  )),
                 if (!_allTags.contains(_tagInput) && _tagInput.isNotEmpty)
-                  ListTile(
+                ListTile(
                     leading: const Icon(Icons.add, size: 20),
-                    title: Text('Add "$_tagInput"'),
+                  title: Text('Add "$_tagInput"'),
                     onTap: () => _addNewTag(_tagInput),
-                  ),
-              ],
-            ),
+                ),
+            ],
+          ),
           ),
         const SizedBox(height: 12),
         Wrap(

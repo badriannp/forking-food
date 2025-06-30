@@ -93,13 +93,13 @@ class RecipeService {
     }
   }
 
-  /// Save a swipe action
   Future<void> saveSwipe({
     required String userId,
     required String recipeId,
     required SwipeDirection direction,
   }) async {
     try {
+      // Save to user's swipe history
       await _firestore
           .collection('swipes')
           .doc(userId)
@@ -109,7 +109,17 @@ class RecipeService {
             }
           }, SetOptions(merge: true));
 
-      // Increment/decrement forkInCount on recipe
+      // Track daily likes if it's a right swipe (like)
+      if (direction == SwipeDirection.right) {
+        await _incrementDailyLike(recipeId);
+        // Update user preference scores when they like a recipe
+        await _updateUserPreferenceScores(userId, recipeId, true);
+      } else if (direction == SwipeDirection.left) {
+        // Update user preference scores when they dislike a recipe
+        await _updateUserPreferenceScores(userId, recipeId, false);
+      }
+
+      // Increment/decrement forkInCount on recipe (overall count)
       final recipeRef = _firestore.collection('recipes').doc(recipeId);
       if (direction == SwipeDirection.right) {
         await recipeRef.update({'forkInCount': FieldValue.increment(1)});
@@ -118,6 +128,165 @@ class RecipeService {
       }
     } catch (e) {
       print('Error saving swipe: $e');
+    }
+  }
+
+  /// Update user preference scores based on their swipe
+  Future<void> _updateUserPreferenceScores(String userId, String recipeId, bool isLike) async {
+    try {
+      // Get the recipe to analyze its characteristics
+      DocumentSnapshot recipeDoc = await _firestore.collection('recipes').doc(recipeId).get();
+      if (!recipeDoc.exists) return;
+      
+      Map<String, dynamic> recipeData = recipeDoc.data() as Map<String, dynamic>;
+      Recipe recipe = Recipe.fromMap({...recipeData, 'id': recipeId});
+      
+      // Get current user preferences
+      DocumentSnapshot userPrefsDoc = await _firestore
+          .collection('user_preferences')
+          .doc(userId)
+          .get();
+      
+      Map<String, dynamic> currentPrefs = {};
+      if (userPrefsDoc.exists && userPrefsDoc.data() != null) {
+        currentPrefs = Map<String, dynamic>.from(userPrefsDoc.data() as Map<String, dynamic>);
+      }
+      
+      // Update ingredient scores
+      Map<String, double> ingredientScores = Map<String, double>.from(
+        currentPrefs['ingredientScores'] ?? {}
+      );
+      
+      for (String ingredient in recipe.ingredients) {
+        final key = ingredient.toLowerCase();
+        ingredientScores[key] = (ingredientScores[key] ?? 0) + (isLike ? 1 : -0.5);
+        // Ensure score doesn't go below 0
+        if (ingredientScores[key]! < 0) ingredientScores[key] = 0;
+      }
+      
+      // Update dietary criteria scores
+      Map<String, double> dietaryScores = Map<String, double>.from(
+        currentPrefs['dietaryScores'] ?? {}
+      );
+      
+      for (String criteria in recipe.dietaryCriteria) {
+        final key = criteria.toLowerCase();
+        dietaryScores[key] = (dietaryScores[key] ?? 0) + (isLike ? 1 : -0.5);
+        if (dietaryScores[key]! < 0) dietaryScores[key] = 0;
+      }
+      
+      // Update tag scores
+      Map<String, double> tagScores = Map<String, double>.from(
+        currentPrefs['tagScores'] ?? {}
+      );
+      
+      for (String tag in recipe.tags) {
+        final key = tag.toLowerCase();
+        tagScores[key] = (tagScores[key] ?? 0) + (isLike ? 1 : -0.5);
+        if (tagScores[key]! < 0) tagScores[key] = 0;
+      }
+      
+      // Save updated preferences
+      await _firestore
+          .collection('user_preferences')
+          .doc(userId)
+          .set({
+            'userId': userId,
+            'ingredientScores': ingredientScores,
+            'dietaryScores': dietaryScores,
+            'tagScores': tagScores,
+            'lastUpdated': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+      
+    } catch (e) {
+      print('Error updating user preference scores: $e');
+    }
+  }
+
+  /// Increment daily like count for a recipe
+  Future<void> _incrementDailyLike(String recipeId) async {
+    try {
+      final today = DateTime.now().toIso8601String().split('T')[0]; // YYYY-MM-DD
+      
+      await _firestore
+          .collection('daily_likes')
+          .doc(today)
+          .set({
+            'date': today,
+            'likes': {
+              recipeId: FieldValue.increment(1),
+            }
+          }, SetOptions(merge: true));
+    } catch (e) {
+      print('Error incrementing daily like: $e');
+    }
+  }
+
+  /// Get today's leaderboard (top 3 most liked recipes today)
+  Future<List<Recipe>> getTodayLeaderboard({int limit = 3}) async {
+    try {
+      final today = DateTime.now().toIso8601String().split('T')[0];
+      
+      // Get today's likes document
+      DocumentSnapshot dailyLikesDoc = await _firestore
+          .collection('daily_likes')
+          .doc(today)
+          .get();
+      
+      List<Recipe> recipes = [];
+      
+      if (dailyLikesDoc.exists && dailyLikesDoc.data() != null) {
+        Map<String, dynamic> data = dailyLikesDoc.data() as Map<String, dynamic>;
+        Map<String, dynamic> likes = data['likes'] ?? {};
+        
+        if (likes.isNotEmpty) {
+          // Sort recipes by today's like count
+          List<MapEntry<String, dynamic>> sortedLikes = likes.entries.toList()
+            ..sort((a, b) => (b.value as int).compareTo(a.value as int));
+          
+          // Get top recipes
+          final topRecipeIds = sortedLikes
+              .take(limit)
+              .map((entry) => entry.key)
+              .toList();
+          
+          // Get the actual recipe documents
+          recipes = await _getRecipesByIds(topRecipeIds);
+        }
+      }
+      
+      // Load creator data for all recipes
+      recipes = await _loadCreatorDataForRecipes(recipes);
+      
+      return recipes;
+    } catch (e) {
+      print('Error getting today leaderboard: $e');
+      return [];
+    }
+  }
+
+  /// Clean up old daily likes
+  Future<void> cleanupOldDailyLikes() async {
+    try {
+      final today = DateTime.now().toIso8601String().split('T')[0];
+      
+      // Get all daily likes documents
+      QuerySnapshot snapshot = await _firestore
+          .collection('daily_likes')
+          .get();
+      
+      // Delete all documents except today's
+      WriteBatch batch = _firestore.batch();
+      for (DocumentSnapshot doc in snapshot.docs) {
+        if (doc.id != today) {
+          batch.delete(doc.reference);
+        }
+      }
+      
+      await batch.commit();
+      print('Cleaned up ${snapshot.docs.length - 1} old daily likes documents');
+    } catch (e) {
+      print('Error cleaning up old daily likes: $e');
     }
   }
 
@@ -459,6 +628,147 @@ class RecipeService {
       return [];
     }
   }
+
+  /// Get personalized recommendations based on user preferences
+  Future<List<Recipe>> getPersonalizedRecommendations({
+    required String userId,
+    int limit = 8,
+  }) async {
+    try {
+      // Get user's swipe history to exclude already swiped recipes
+      final swipesDoc = await _firestore.collection('swipes').doc(userId).get();
+      Map<String, String> swipedRecipes = {};
+      
+      if (swipesDoc.exists && swipesDoc.data() != null) {
+        swipedRecipes = Map<String, String>.from(
+          (swipesDoc.data() as Map<String, dynamic>)['swipedRecipes'] ?? {}
+        );
+      }
+      
+      // Get all recipes that are not user's own recipes
+      QuerySnapshot snapshot = await _firestore.collection('recipes')
+          .where('creatorId', isNotEqualTo: userId) // Exclude own recipes
+          .get();
+      
+      List<Recipe> allRecipes = snapshot.docs.map((doc) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id;
+        return Recipe.fromMap(data);
+      }).toList();
+      
+      // Filter out already swiped recipes
+      allRecipes = allRecipes.where((recipe) => 
+        !swipedRecipes.containsKey(recipe.id)
+      ).toList();
+      
+      if (allRecipes.isEmpty) {
+        return [];
+      }
+      
+      // Get user's saved preference scores
+      DocumentSnapshot userPrefsDoc = await _firestore
+          .collection('user_preferences')
+          .doc(userId)
+          .get();
+      
+      Map<String, double> ingredientScores = {};
+      Map<String, double> dietaryScores = {};
+      Map<String, double> tagScores = {};
+      
+      if (userPrefsDoc.exists && userPrefsDoc.data() != null) {
+        Map<String, dynamic> prefsData = userPrefsDoc.data() as Map<String, dynamic>;
+        ingredientScores = Map<String, double>.from(prefsData['ingredientScores'] ?? {});
+        dietaryScores = Map<String, double>.from(prefsData['dietaryScores'] ?? {});
+        tagScores = Map<String, double>.from(prefsData['tagScores'] ?? {});
+      }
+      
+      // Score all available recipes using saved preferences
+      List<_ScoredRecipe> scoredRecipes = allRecipes.map((recipe) {
+        double totalScore = 0;
+        
+        // Ingredient score (35%)
+        double ingredientScore = 0;
+        for (final ingredient in recipe.ingredients) {
+          ingredientScore += ingredientScores[ingredient.toLowerCase()] ?? 0;
+        }
+        if (recipe.ingredients.isNotEmpty) {
+          totalScore += (ingredientScore / recipe.ingredients.length) * 0.35;
+        }
+        
+        // Dietary criteria score (30%)
+        double dietaryScore = 0;
+        for (final criteria in recipe.dietaryCriteria) {
+          dietaryScore += dietaryScores[criteria.toLowerCase()] ?? 0;
+        }
+        if (recipe.dietaryCriteria.isNotEmpty) {
+          totalScore += (dietaryScore / recipe.dietaryCriteria.length) * 0.30;
+        }
+        
+        // Tag score (20%)
+        double tagScore = 0;
+        for (final tag in recipe.tags) {
+          tagScore += tagScores[tag.toLowerCase()] ?? 0;
+        }
+        if (recipe.tags.isNotEmpty) {
+          totalScore += (tagScore / recipe.tags.length) * 0.20;
+        }
+        
+        // Photos number score (15%) - more photos = better
+        double photoScore = recipe.instructions
+            .where((step) => step.mediaUrl != null)
+            .length / recipe.instructions.length;
+        totalScore += photoScore * 0.15;
+        
+        // Add some randomness to avoid always showing the same recipes
+        totalScore += (DateTime.now().millisecondsSinceEpoch % 100) / 1000;
+        
+        return _ScoredRecipe(recipe: recipe, score: totalScore);
+      }).toList();
+      
+      // Sort by score (descending) and take top recipes
+      scoredRecipes.sort((a, b) => b.score.compareTo(a.score));
+      final topRecipes = scoredRecipes
+          .take(limit)
+          .map((scored) => scored.recipe)
+          .toList();
+      
+      // Load creator data for all recipes
+      return await _loadCreatorDataForRecipes(topRecipes);
+      
+    } catch (e) {
+      print('Error getting personalized recommendations: $e');
+      // Fallback to empty list if recommendation algorithm fails
+      return [];
+    }
+  }
+  
+  /// Get recipes by IDs
+  Future<List<Recipe>> _getRecipesByIds(List<String> recipeIds) async {
+    try {
+      List<Recipe> recipes = [];
+      const int batchSize = 10; // Firestore limit for 'in' queries
+      
+      for (int i = 0; i < recipeIds.length; i += batchSize) {
+        final batch = recipeIds.skip(i).take(batchSize).toList();
+        
+        QuerySnapshot snapshot = await _firestore
+            .collection('recipes')
+            .where(FieldPath.documentId, whereIn: batch)
+            .get();
+        
+        for (DocumentSnapshot doc in snapshot.docs) {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          data['id'] = doc.id;
+          recipes.add(Recipe.fromMap(data));
+        }
+      }
+      
+      return recipes;
+    } catch (e) {
+      print('Error getting recipes by IDs: $e');
+      return [];
+    }
+  }
 }
 
 /// Result class for pagination
@@ -478,4 +788,11 @@ class RecipePaginationResult {
 enum SwipeDirection {
   left,   // Dislike/Skip
   right,  // Like/Fork
+}
+
+class _ScoredRecipe {
+  final Recipe recipe;
+  final double score;
+  
+  _ScoredRecipe({required this.recipe, required this.score});
 } 

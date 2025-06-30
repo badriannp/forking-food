@@ -28,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool hasMore = true;
   bool isLoading = false;
   bool isInitialLoading = true;
+  bool hasReachedEnd = false; // Track when we've reached the end
 
   // Filter state
   Set<String> selectedDietaryCriteria = {};
@@ -63,39 +64,39 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Load initial recipes from Firebase
   Future<void> _loadInitialRecipes() async {
-    if (isLoading) return;
+    if (!mounted) return;
     
     setState(() {
-      isLoading = true;
       isInitialLoading = true;
+      hasReachedEnd = false; // Reset when loading new recipes
     });
 
     try {
-
       final String? userId = _authService.userId;
       if (userId == null) return;
       
-      RecipePaginationResult result = await _recipeService.getRecipesForFeed(
+      final result = await _recipeService.getRecipesForFeed(
         userId: userId,
-        limit: 20,
-        dietaryCriteria: selectedDietaryCriteria.isNotEmpty ? selectedDietaryCriteria.toList() : null,
-        minTime: minTime.inMinutes != -1 ? minTime : null,
-        maxTime: maxTime.inMinutes != -1 ? maxTime : null,
+        dietaryCriteria: selectedDietaryCriteria.isEmpty ? null : selectedDietaryCriteria.toList(),
+        minTime: minTime.inMinutes == -1 ? null : minTime,
+        maxTime: maxTime.inMinutes == -1 ? null : maxTime,
       );
-
-      setState(() {
-        recipes = result.recipes;
-        lastDocument = result.lastDocument;
-        hasMore = result.hasMore;
-        isLoading = false;
-        isInitialLoading = false;
-      });
+      
+      if (mounted) {
+        setState(() {
+          recipes = result.recipes;
+          lastDocument = result.lastDocument;
+          hasMore = result.hasMore;
+          isInitialLoading = false;
+        });
+      }
     } catch (e) {
       print('Error loading initial recipes: $e');
-      setState(() {
-        isLoading = false;
-        isInitialLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isInitialLoading = false;
+        });
+      }
     }
   }
 
@@ -210,6 +211,17 @@ class _HomeScreenState extends State<HomeScreen> {
             fontSize: 28,
           ),
         ),
+        leading: IconButton(
+          icon: Icon(
+            Icons.library_add_outlined,
+            color: Theme.of(context).colorScheme.primary,
+            size: 28,
+          ),
+          onPressed: () {
+            // Navigate to add recipe screen
+            Navigator.pushNamed(context, '/add-recipe');
+          },
+        ),
         actions: [
           IconButton(
             icon: Icon(
@@ -232,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> {
           return SizedBox(
             width: constraints.maxWidth,
             height: constraints.maxHeight,
-            child: recipesToShow.isEmpty
+            child: recipesToShow.isEmpty || hasReachedEnd
                 ? _buildNoRecipesView()
                 : Stack(
                         children: [
@@ -307,7 +319,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final actualCurrentIndex = currentIndex ?? 0;
     
     setState(() {
-      // currentIndex is already handled above
+      // Check if we've reached the end
+      if (currentIndex == null) {
+        hasReachedEnd = true;
+      }
     });
     
     // Check if we need to load more recipes
