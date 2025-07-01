@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
-import 'package:forking/screens/login_screen.dart';
+import 'package:forking/screens/auth/login_screen.dart';
 import 'package:forking/screens/main_screen.dart';
 import 'package:forking/services/auth_service.dart';
 import 'package:flutter/services.dart';
