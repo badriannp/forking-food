@@ -34,11 +34,18 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   File? _pickedImage;
   
   // Tag logic
-  List<String> _allTags = [];
-  final List<String> _selectedTags = [];
+  List<String> _localTags = []; // All tags from Firebase + newly added
+  final List<String> _selectedTags = []; // Selected tags for recipe
   final TextEditingController _tagController = TextEditingController();
   String _tagInput = '';
   bool _isLoadingTags = false;
+
+  // Dietary criteria logic
+  List<String> _localDietary = []; // All dietary criteria from Firebase + newly added
+  final List<String> _selectedDietary = []; // Selected dietary criteria for recipe
+  final TextEditingController _dietaryController = TextEditingController();
+  String _dietaryInput = '';
+  bool _isLoadingDietaryCriteria = false;
 
   int _totalHours = 0;
   int _totalMinutes = 0;
@@ -48,6 +55,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   final FocusNode _descriptionFocus = FocusNode();
   final FocusNode _tagFocus = FocusNode();
   final FocusNode _ingredientFocus = FocusNode();
+  final FocusNode _dietaryFocus = FocusNode();
   final List<FocusNode> _instructionFocuses = [];
 
   // Validation state
@@ -59,24 +67,6 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   List<bool> _showInstructionErrors = [];
   bool _isSaving = false;
 
-  final List<String> dietaryCriteriaList = [
-    'Vegan',
-    'Vegetarian',
-    'Lactose Free',
-    'Gluten Free',
-    'Nut Free',
-    'Dairy Free',
-    'Egg Free',
-    'Sugar Free',
-    'Low Carb',
-    'Low Fat',
-    'Paleo',
-    'Keto',
-    'Halal',
-    'Kosher',
-  ];
-  List<String> _selectedCriteria = [];
-
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -87,8 +77,9 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     _instructionFocuses.add(FocusNode());
     _showInstructionErrors.add(false);
     
-    // Load tags from database
+    // Load tags and dietary criteria from database
     _loadTags();
+    _loadDietaryCriteria();
   }
 
   /// Load all available tags from database
@@ -100,7 +91,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     try {
       final tags = await _recipeService.getAllTags();
       setState(() {
-        _allTags = tags;
+        _localTags = tags;
         _isLoadingTags = false;
       });
     } catch (e) {
@@ -113,22 +104,20 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
 
   /// Search tags based on input
   Future<void> _searchTags(String query) async {
-    if (query.isEmpty) {
-      await _loadTags();
+    final trimmedQuery = query.trim();
+    if (trimmedQuery.isEmpty) {
+      // Don't reload from database, just show all local tags
+      setState(() {
+        // Keep the current _localTags as is
+      });
       return;
     }
     
-    try {
-      final tags = await _recipeService.searchTags(query);
-      setState(() {
-        _allTags = tags;
-      });
-    } catch (e) {
-      print('Error searching tags: $e');
-    }
+    // Don't search in database, just filter the local list
+    // The filtering is done in the UI based on _tagInput
   }
 
-  /// Add a new tag to local list (will be uploaded when recipe is saved)
+  /// Add a new tag to local list and selected list
   Future<void> _addNewTag(String tag) async {
     if (tag.trim().isEmpty) return;
     
@@ -136,17 +125,14 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     if (_selectedTags.contains(cleanTag)) return;
     
     try {
-      // Add to local lists only (not to database yet)
       setState(() {
         _selectedTags.add(cleanTag);
-        if (!_allTags.contains(cleanTag)) {
-          _allTags.add(cleanTag);
+        if (!_localTags.contains(cleanTag)) {
+          _localTags.add(cleanTag);
         }
         _tagController.clear();
         _tagInput = '';
       });
-      
-      // Tags are optional - no error state to clear
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -157,16 +143,90 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     }
   }
 
+  /// Load all available dietary criteria from database
+  Future<void> _loadDietaryCriteria() async {
+    setState(() {
+      _isLoadingDietaryCriteria = true;
+    });
+    
+    try {
+      final criteria = await _recipeService.getAllDietaryCriteria();
+      setState(() {
+        _localDietary = criteria;
+        _isLoadingDietaryCriteria = false;
+      });
+    } catch (e) {
+      print('Error loading dietary criteria: $e');
+      setState(() {
+        _isLoadingDietaryCriteria = false;
+      });
+    }
+  }
+
+  /// Search dietary criteria based on input
+  Future<void> _searchDietaryCriteria(String query) async {
+    final trimmedQuery = query.trim();
+    if (trimmedQuery.isEmpty) {
+      // Don't reload from database, just show all local criteria
+      setState(() {
+        // Keep the current _localDietary as is
+      });
+      return;
+    }
+    
+    // Don't search in database, just filter the local list
+    // The filtering is done in the UI based on _dietaryInput
+  }
+
+  /// Add a new dietary criteria to local list and selected list
+  Future<void> _addNewDietaryCriteria(String criteria) async {
+    if (criteria.trim().isEmpty) return;
+    
+    final cleanCriteria = _normalizeDietaryCriteria(criteria.trim());
+    if (_selectedDietary.contains(cleanCriteria)) return;
+    
+    try {
+      setState(() {
+        _selectedDietary.add(cleanCriteria);
+        if (!_localDietary.contains(cleanCriteria)) {
+          _localDietary.add(cleanCriteria);
+        }
+        _dietaryController.clear();
+        _dietaryInput = '';
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to add dietary criteria: ${e.toString()}'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
+  }
+
+  /// Normalize dietary criteria to Title Case
+  String _normalizeDietaryCriteria(String criteria) {
+    if (criteria.isEmpty) return criteria;
+    
+    // Convert to Title Case (first letter of each word uppercase)
+    return criteria.split(' ').map((word) {
+      if (word.isEmpty) return word;
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
+  }
+
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
     _ingredientController.dispose();
     _tagController.dispose();
+    _dietaryController.dispose();
     _titleFocus.dispose();
     _descriptionFocus.dispose();
     _tagFocus.dispose();
     _ingredientFocus.dispose();
+    _dietaryFocus.dispose();
     _scrollController.dispose();
     for (var controller in _instructionControllers) {
       controller.dispose();
@@ -433,14 +493,29 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
       }
 
       // Upload new tags to database first
+      final existingTags = await _recipeService.getAllTags();
       for (String tag in _selectedTags) {
-        if (!_allTags.contains(tag)) {
+        if (!existingTags.contains(tag)) {
           try {
             await _recipeService.addTag(tag);
             print('Uploaded new tag: $tag');
           } catch (e) {
             print('Failed to upload tag $tag: $e');
             // Continue with recipe upload even if tag upload fails
+          }
+        }
+      }
+
+      // Upload new dietary criteria to database first
+      final existingCriteria = await _recipeService.getAllDietaryCriteria();
+      for (String criteria in _selectedDietary) {
+        if (!existingCriteria.contains(criteria)) {
+          try {
+            await _recipeService.addDietaryCriteria(criteria);
+            print('Uploaded new dietary criteria: $criteria');
+          } catch (e) {
+            print('Failed to upload dietary criteria $criteria: $e');
+            // Continue with recipe upload even if dietary criteria upload fails
           }
         }
       }
@@ -458,7 +533,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         creatorName: displayName,
         creatorPhotoURL: photoURL,
         createdAt: DateTime.now(),
-        dietaryCriteria: _selectedCriteria.toList(),
+        dietaryCriteria: _selectedDietary.toList(),
       );
 
       await _recipeService.saveRecipe(recipe);
@@ -508,6 +583,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
       _descriptionController.clear();
       _ingredientController.clear();
       _tagController.clear();
+      _dietaryController.clear();
       _pickedImage = null;
       _totalHours = 0;
       _totalMinutes = 0;
@@ -519,13 +595,14 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
       _instructionFocuses.forEach((f) => f.dispose());
       _instructionFocuses.clear();
       _showInstructionErrors.clear();
-      _selectedCriteria.clear();
+      _selectedDietary.clear();
       _showImageError = false;
       _showTimeError = false;
       _showIngredientsError = false;
       _showTitleError = false;
       _showDescriptionError = false;
       _tagInput = '';
+      _dietaryInput = '';
       _instructions.add(InstructionStep(description: ''));
       _instructionControllers.add(TextEditingController());
       _instructionFocuses.add(FocusNode());
@@ -557,6 +634,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
       _descriptionController.text.isNotEmpty ||
       _ingredientController.text.isNotEmpty ||
       _tagController.text.isNotEmpty ||
+      _dietaryController.text.isNotEmpty ||
       _pickedImage != null ||
       _totalHours > 0 ||
       _totalMinutes > 0 ||
@@ -564,7 +642,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
       _ingredients.isNotEmpty ||
       _instructions.length > 1 ||
       _instructions.first.description.isNotEmpty ||
-      _selectedCriteria.isNotEmpty;
+      _selectedDietary.isNotEmpty;
   }
 
   void _onClearPressed() async {
@@ -637,147 +715,164 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        scrolledUnderElevation: 0,
-        shadowColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        backgroundColor: Colors.transparent,
-        systemOverlayStyle: SystemUiOverlayStyle.dark,
-        elevation: 0,
-        title: Text(
-          'Forking',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            fontFamily: 'EduNSWACTHand',
-            fontWeight: FontWeight.w600,
-            color: Theme.of(context).colorScheme.primary,
-            fontSize: 28,
+    return PopScope(
+      canPop: !_hasRecipeDataToClear,
+      child: Scaffold(
+        appBar: AppBar(
+          centerTitle: true,
+          scrolledUnderElevation: 0,
+          shadowColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          backgroundColor: Colors.transparent,
+          systemOverlayStyle: SystemUiOverlayStyle.dark,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () async {
+              if (_hasRecipeDataToClear) {
+                final shouldPop = await _showConfirmDialog(
+                  'Discard changes?',
+                  'Discard',
+                );
+                if (shouldPop && mounted) {
+                  Navigator.of(context).pop();
+                }
+              } else {
+                Navigator.of(context).pop();
+              }
+            },
           ),
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              Icons.delete_outline,
-              color: _hasRecipeDataToClear
-                ? Theme.of(context).colorScheme.error
-                : Theme.of(context).colorScheme.onSurface.withOpacity(0.2),
+          title: Text(
+            'Forking',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              fontFamily: 'EduNSWACTHand',
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.primary,
+              fontSize: 28,
             ),
-            tooltip: 'Clear Recipe',
-            onPressed: _hasRecipeDataToClear ? _onClearPressed : null,
           ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: const EdgeInsets.all(20.0),
-        controller: _scrollController,
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Image Picker
-              _buildImagePicker(context),
-              const SizedBox(height: 24),
+          actions: [
+            IconButton(
+              icon: Icon(
+                Icons.delete_outline,
+                color: _hasRecipeDataToClear
+                  ? Theme.of(context).colorScheme.error
+                  : Theme.of(context).colorScheme.onSurface.withOpacity(0.2),
+              ),
+              tooltip: 'Clear Recipe',
+              onPressed: _hasRecipeDataToClear ? _onClearPressed : null,
+            ),
+          ],
+        ),
+        body: GestureDetector(
+          onTap: () {
+            // Close keyboard when tapping outside input fields
+            FocusScope.of(context).unfocus();
+          },
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20.0),
+            controller: _scrollController,
+            child: Form(
+              key: _formKey,
+              child: Column(
+                spacing: 40,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. Image Picker
+                  _buildImagePicker(context),
 
-              // 2. Title
-              TextFormField(
-                controller: _titleController,
-                focusNode: _titleFocus,
-                textInputAction: TextInputAction.next,
-                decoration: InputDecoration(
-                  labelText: 'Recipe Title',
-                  hintText: 'Enter your recipe title',
-                  hintStyle: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface.withAlpha((0.3 * 255).toInt()),
+                  // 2. Title
+                  TextFormField(
+                    controller: _titleController,
+                    focusNode: _titleFocus,
+                    textInputAction: TextInputAction.done,
+                    decoration: InputDecoration(
+                      labelText: 'Recipe Title',
+                      hintText: 'Enter your recipe title',
+                      hintStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface.withAlpha((0.3 * 255).toInt()),
+                      ),
+                      errorText: _showTitleError ? 'Please enter a title' : null,
+                    ),
+                    onChanged: (value) {
+                      setState(() {});
+                      if (_showTitleError && value.trim().isNotEmpty) {
+                        setState(() => _showTitleError = false);
+                      }
+                    },
+                    onFieldSubmitted: (_) {
+                      if (mounted && _descriptionFocus.canRequestFocus) {
+                        FocusScope.of(context).requestFocus(_descriptionFocus);
+                      }
+                    },
                   ),
-                  errorText: _showTitleError ? 'Please enter a title' : null,
-                ),
-                onChanged: (value) {
-                  setState(() {});
-                  if (_showTitleError && value.trim().isNotEmpty) {
-                    setState(() => _showTitleError = false);
-                  }
-                },
-                onFieldSubmitted: (_) {
-                  if (mounted && _descriptionFocus.canRequestFocus) {
-                    FocusScope.of(context).requestFocus(_descriptionFocus);
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
 
-              // 3. Description
-              TextFormField(
-                controller: _descriptionController,
-                focusNode: _descriptionFocus,
-                textInputAction: TextInputAction.next,
-                decoration: InputDecoration(
-                  labelText: 'Description',
-                  hintText: 'Describe your recipe...',
-                  hintStyle: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface.withAlpha((0.3 * 255).toInt()),
+                  // 3. Description
+                  TextFormField(
+                    controller: _descriptionController,
+                    focusNode: _descriptionFocus,
+                    textInputAction: TextInputAction.newline,
+                    decoration: InputDecoration(
+                      labelText: 'Description',
+                      hintText: 'Describe your recipe...',
+                      hintStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface.withAlpha((0.3 * 255).toInt()),
+                      ),
+                      errorText: _showDescriptionError ? 'Please enter a description' : null,
+                    ),
+                    maxLines: 3,
+                    onChanged: (value) {
+                      setState(() {});
+                      if (_showDescriptionError && value.trim().isNotEmpty) {
+                        setState(() => _showDescriptionError = false);
+                      }
+                    },
+                    onFieldSubmitted: (_) {
+                      if (mounted && _tagFocus.canRequestFocus) {
+                        FocusScope.of(context).requestFocus(_tagFocus);
+                      }
+                    },
                   ),
-                  errorText: _showDescriptionError ? 'Please enter a description' : null,
-                ),
-                maxLines: 3,
-                onChanged: (value) {
-                  setState(() {});
-                  if (_showDescriptionError && value.trim().isNotEmpty) {
-                    setState(() => _showDescriptionError = false);
-                  }
-                },
-                onFieldSubmitted: (_) {
-                  if (mounted && _tagFocus.canRequestFocus) {
-                    FocusScope.of(context).requestFocus(_tagFocus);
-                  }
-                },
+
+                  // Timp total estimat
+                  _buildTotalTimeSection(),
+
+                  // 3. Tags section
+                  _buildTagsSection(),
+
+                  // 4. Ingredients
+                  _buildIngredientsSection(),
+
+                  // 5. Instructions
+                  _buildInstructionsSection(),
+
+                  // 6. Dietary Criteria
+                  _buildDietaryCriteriaSection(),
+
+                  // 7. Submit Button
+                  Center(
+                    child: ElevatedButton(
+                      onPressed: _isSaving ? null : _saveRecipe,
+                      child: _isSaving 
+                        ? const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                              SizedBox(width: 8),
+                              Text('Publishing...'),
+                            ],
+                          )
+                        : const Text('Publish Recipe'),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
               ),
-              const SizedBox(height: 24),
-
-              // Timp total estimat
-              _buildTotalTimeSection(),
-              const SizedBox(height: 24),
-
-              // 3. Tags section
-              _buildTagsSection(),
-              const SizedBox(height: 24),
-
-              // 4. Ingredients
-              _buildIngredientsSection(),
-              const SizedBox(height: 24),
-
-              // 5. Instructions
-              _buildInstructionsSection(),
-              const SizedBox(height: 24),
-
-              // 6. Dietary Criteria
-              _buildDietaryCriteriaSection(),
-              const SizedBox(height: 24),
-
-              // 7. Submit Button
-              Center(
-                child: ElevatedButton(
-                  onPressed: _isSaving ? null : _saveRecipe,
-                  child: _isSaving 
-                    ? const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                          SizedBox(width: 8),
-                          Text('Publishing...'),
-                        ],
-                      )
-                    : const Text('Publish Recipe'),
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
+            ),
           ),
         ),
       ),
@@ -923,7 +1018,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
               child: TextFormField(
                 controller: _ingredientController,
                 focusNode: _ingredientFocus,
-                textInputAction: TextInputAction.done,
+                textInputAction: TextInputAction.go,
                 decoration: InputDecoration(
                   labelText: 'Ingredient',
                   hintText: 'e.g., 200g flour',
@@ -1023,7 +1118,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   Widget _buildInstructionStepCard(int index) {
     final step = _instructions[index];
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 20),
       child: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Column(
@@ -1034,7 +1129,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
               children: [
                 Text(
                   'Step ${index + 1}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).colorScheme.onSurface),
                 ),
                 IconButton(
                   icon: Icon(
@@ -1129,7 +1224,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         TextField(
           controller: _tagController,
           focusNode: _tagFocus,
-          textInputAction: TextInputAction.done,
+          textInputAction: TextInputAction.go,
           decoration: InputDecoration(
             labelText: 'Add or search tag',
             hintText: 'Search or add a new tag',
@@ -1153,11 +1248,20 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
           onSubmitted: (value) {
             final tag = value.trim();
             if (tag.isNotEmpty && !_selectedTags.contains(tag)) {
-              _addNewTag(tag);
+              if (!_localTags.contains(tag)) {
+                _addNewTag(tag);
+              } else {
+                // Select existing tag
+                setState(() {
+                  _selectedTags.add(tag);
+                  _tagController.clear();
+                  _tagInput = '';
+                });
+              }
             }
           },
         ),
-        if (_tagInput.isNotEmpty && _allTags.isNotEmpty)
+        if (_tagInput.isNotEmpty && _localTags.isNotEmpty)
           Container(
             margin: const EdgeInsets.only(top: 8),
             decoration: BoxDecoration(
@@ -1169,8 +1273,8 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
             ),
             child: Column(
             children: [
-                ..._allTags
-                    .where((tag) => tag.toLowerCase().contains(_tagInput.toLowerCase()))
+                ..._localTags
+                    .where((tag) => tag.toLowerCase().contains(_tagInput.trim().toLowerCase()))
                     .take(5)
                     .map((tag) => ListTile(
                     title: Text(tag),
@@ -1186,14 +1290,31 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                             }
                           },
                   )),
-                if (!_allTags.contains(_tagInput) && _tagInput.isNotEmpty)
+                if (!_localTags.contains(_tagInput.trim()) && _tagInput.trim().isNotEmpty)
                 ListTile(
                     leading: const Icon(Icons.add, size: 20),
-                  title: Text('Add "$_tagInput"'),
-                    onTap: () => _addNewTag(_tagInput),
+                  title: Text('Add "${_tagInput.trim()}"'),
+                    onTap: () => _addNewTag(_tagInput.trim()),
                 ),
             ],
           ),
+          ),
+        // Show "Add new" even if no tags found
+        if (_tagInput.trim().isNotEmpty && _localTags.isEmpty)
+          Container(
+            margin: const EdgeInsets.only(top: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+              ),
+            ),
+            child: ListTile(
+              leading: const Icon(Icons.add, size: 20),
+              title: Text('Add "${_tagInput.trim()}"'),
+              onTap: () => _addNewTag(_tagInput.trim()),
+            ),
           ),
         const SizedBox(height: 12),
         Wrap(
@@ -1220,50 +1341,153 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     return Padding(
       padding: const EdgeInsets.only(top: 24.0, bottom: 8.0),
       child: Column(
-        spacing: 12,
+        spacing: 16,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Dietary Criteria', style: Theme.of(context).textTheme.titleMedium),
+          TextField(
+            controller: _dietaryController,
+            focusNode: _dietaryFocus,
+            textInputAction: TextInputAction.go,
+            decoration: InputDecoration(
+              labelText: 'Search or add dietary criteria',
+              hintText: 'e.g., Vegan, Gluten Free...',
+              hintStyle: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withAlpha((0.3 * 255).toInt()),
+              ),
+              prefixIcon: _isLoadingDietaryCriteria 
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.restaurant),
+            ),
+            onChanged: (value) {
+              setState(() {
+                _dietaryInput = value;
+              });
+              _searchDietaryCriteria(value);
+            },
+            onSubmitted: (value) {
+              final criteria = value.trim();
+              if (criteria.isNotEmpty) {
+                final normalizedCriteria = _normalizeDietaryCriteria(criteria);
+                if (!_selectedDietary.contains(normalizedCriteria)) {
+                  if (!_localDietary.contains(normalizedCriteria)) {
+                    // Add new criteria
+                    _addNewDietaryCriteria(criteria);
+                  } else {
+                    // Select existing criteria
+                    setState(() {
+                      _selectedDietary.add(normalizedCriteria);
+                      _dietaryController.clear();
+                      _dietaryInput = '';
+                    });
+                  }
+                }
+              }
+            },
+            // onTap: () {
+            //   // Scroll to show dietary criteria section with delay to allow focus
+            //   Future.delayed(const Duration(milliseconds: 120), () {
+            //     if (mounted) {
+            //       final RenderBox? renderBox = _dietaryFocus.context?.findRenderObject() as RenderBox?;
+            //       if (renderBox != null) {
+            //         Scrollable.ensureVisible(
+            //           _dietaryFocus.context!,
+            //           duration: const Duration(milliseconds: 500),
+            //           curve: Curves.easeInOut,
+            //           alignment: 0.3, // Show at 30% from top
+            //         );
+            //       }
+            //     }
+            //   });
+            // },
+          ),
           Wrap(
             spacing: 8,
             runSpacing: 4,
-            children: dietaryCriteriaList.map((criteria) {
-              final selected = _selectedCriteria.contains(criteria);
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    if (selected) {
-                      _selectedCriteria.remove(criteria);
-                    } else {
-                      _selectedCriteria.add(criteria);
-                    }
-                  });
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: selected 
-                        ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
-                        : Colors.transparent,
-                    border: Border.all(
+            children: [
+              // Show filtered criteria based on search
+              ..._localDietary
+                  .where((criteria) => _dietaryInput.trim().isEmpty || 
+                      criteria.toLowerCase().contains(_dietaryInput.trim().toLowerCase()))
+                  .map((criteria) {
+                final selected = _selectedDietary.contains(criteria);
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      if (selected) {
+                        _selectedDietary.remove(criteria);
+                      } else {
+                        _selectedDietary.add(criteria);
+                      }
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
                       color: selected 
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                      width: 1.2,
+                          ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                          : Colors.transparent,
+                      border: Border.all(
+                        color: selected 
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                        width: 1.2,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    borderRadius: BorderRadius.circular(20),
+                    child: Text(
+                      criteria,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: selected 
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                      ),
+                    ),
                   ),
-                  child: Text(
-                    criteria,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: selected 
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                );
+              }).toList(),
+              // Add new criteria chip if input is not empty and not already in list
+              if (_dietaryInput.trim().isNotEmpty && 
+                  !_localDietary.any((criteria) => 
+                      criteria.toLowerCase() == _dietaryInput.trim().toLowerCase()) &&
+                  !_selectedDietary.any((criteria) => 
+                      criteria.toLowerCase() == _dietaryInput.trim().toLowerCase()))
+                GestureDetector(
+                  onTap: () => _addNewDietaryCriteria(_dietaryInput.trim()),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 1.2,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.add,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _normalizeDietaryCriteria(_dietaryInput.trim()),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              );
-            }).toList(),
+            ],
           ),
         ],
       ),
