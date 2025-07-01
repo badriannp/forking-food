@@ -53,7 +53,6 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   // Validation state
   bool _showImageError = false;
   bool _showTimeError = false;
-  bool _showTagsError = false;
   bool _showIngredientsError = false;
   bool _showTitleError = false;
   bool _showDescriptionError = false;
@@ -147,12 +146,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         _tagInput = '';
       });
       
-      // Clear error state
-      if (_showTagsError) {
-        setState(() {
-          _showTagsError = false;
-        });
-      }
+      // Tags are optional - no error state to clear
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -380,11 +374,12 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
       return;
     }
 
-    if (_selectedTags.isEmpty) {
-      setState(() => _showTagsError = true);
-      _scrollToInvalidField();
-      return;
-    }
+    // Tags are now optional - removed validation
+    // if (_selectedTags.isEmpty) {
+    //   setState(() => _showTagsError = true);
+    //   _scrollToInvalidField();
+    //   return;
+    // }
 
     if (_ingredients.isEmpty) {
       setState(() => _showIngredientsError = true);
@@ -527,7 +522,6 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
       _selectedCriteria.clear();
       _showImageError = false;
       _showTimeError = false;
-      _showTagsError = false;
       _showIngredientsError = false;
       _showTitleError = false;
       _showDescriptionError = false;
@@ -605,8 +599,6 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
           duration: const Duration(milliseconds: 500),
           curve: Curves.easeInOut,
         );
-      } else if (_showTagsError) {
-        _scrollToWidget(_tagFocus);
       } else if (_showIngredientsError) {
         _scrollToWidget(_ingredientFocus);
       } else if (_showInstructionErrors.any((error) => error)) {
@@ -1151,7 +1143,6 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.tag),
-            errorText: _showTagsError ? 'Please add at least one tag.' : null,
           ),
           onChanged: (value) {
             setState(() {
@@ -1191,11 +1182,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                                 _tagController.clear();
                                 _tagInput = '';
                               });
-                              if (_showTagsError) {
-                                setState(() {
-                                  _showTagsError = false;
-                                });
-                              }
+                              // Tags are optional - no error state to clear
                             }
                           },
                   )),
