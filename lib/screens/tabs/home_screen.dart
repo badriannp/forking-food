@@ -35,23 +35,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Duration minTime = const Duration(minutes: -1); // No limit
   Duration maxTime = const Duration(minutes: -1); // No limit
 
-  // Available dietary criteria
-  final List<String> availableDietaryCriteria = [
-    'Vegan',
-    'Vegetarian',
-    'Gluten Free',
-    'Lactose Free',
-    'Dairy Free',
-    'Nut Free',
-    'Low Carb',
-    'Keto',
-    'Paleo',
-    'Halal',
-    'Kosher',
-    'Low Sodium',
-    'Sugar Free',
-    'Organic',
-  ];
+  // Available dietary criteria (loaded from database)
+  List<String> availableDietaryCriteria = [];
+  bool isLoadingDietaryCriteria = false;
 
   // Recipes to show (no more client-side filtering)
   List<Recipe> get recipesToShow => recipes;
@@ -60,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadInitialRecipes();
+    _loadDietaryCriteria();
   }
 
   /// Load initial recipes from Firebase
@@ -182,6 +169,30 @@ class _HomeScreenState extends State<HomeScreen> {
         isLoading = false;
         isInitialLoading = false;
       });
+    }
+  }
+
+  /// Load dietary criteria from database
+  Future<void> _loadDietaryCriteria() async {
+    setState(() {
+      isLoadingDietaryCriteria = true;
+    });
+    
+    try {
+      final criteria = await _recipeService.getAllDietaryCriteria();
+      if (mounted) {
+        setState(() {
+          availableDietaryCriteria = criteria;
+          isLoadingDietaryCriteria = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading dietary criteria: $e');
+      if (mounted) {
+        setState(() {
+          isLoadingDietaryCriteria = false;
+        });
+      }
     }
   }
 

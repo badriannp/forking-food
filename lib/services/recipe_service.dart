@@ -802,6 +802,142 @@ class RecipeService {
       return [];
     }
   }
+
+  /// Get all dietary criteria from database
+  Future<List<String>> getAllDietaryCriteria() async {
+    try {
+      QuerySnapshot querySnapshot = await _firestore
+          .collection('dietary_criteria')
+          .orderBy('name')
+          .get();
+      
+      // If no dietary criteria exist, populate with defaults
+      if (querySnapshot.docs.isEmpty) {
+        await _populateDefaultDietaryCriteria();
+        // Fetch again after populating
+        querySnapshot = await _firestore
+            .collection('dietary_criteria')
+            .orderBy('name')
+            .get();
+      }
+      
+      return querySnapshot.docs
+          .map((doc) => doc.data() as Map<String, dynamic>)
+          .map((data) => data['name'] as String)
+          .toList();
+    } catch (e) {
+      print('Error loading dietary criteria: $e');
+      // Return default list if database fails
+      return [
+        'Vegan',
+        'Vegetarian',
+        'Lactose Free',
+        'Gluten Free',
+        'Nut Free',
+        'Dairy Free',
+        'Egg Free',
+        'Sugar Free',
+        'Low Carb',
+        'Low Fat',
+        'Paleo',
+        'Keto',
+        'Halal',
+        'Kosher',
+      ];
+    }
+  }
+
+  /// Populate database with default dietary criteria
+  Future<void> _populateDefaultDietaryCriteria() async {
+    final defaultCriteria = [
+      'Vegan',
+      'Vegetarian', 
+      'Lactose Free',
+      'Gluten Free',
+      'Nut Free',
+      'Dairy Free',
+      'Egg Free',
+      'Sugar Free',
+      'Low Carb',
+      'Low Fat',
+      'Paleo',
+      'Keto',
+      'Halal',
+      'Kosher',
+    ];
+    
+    for (String criteria in defaultCriteria) {
+      try {
+        await _firestore
+            .collection('dietary_criteria')
+            .doc(criteria.toLowerCase().replaceAll(' ', '_'))
+            .set({
+              'name': criteria,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+      } catch (e) {
+        print('Error adding default dietary criteria $criteria: $e');
+      }
+    }
+  }
+
+  /// Add a new dietary criteria to database
+  Future<void> addDietaryCriteria(String criteria) async {
+    try {
+      final cleanCriteria = _normalizeDietaryCriteria(criteria.trim());
+      if (cleanCriteria.isEmpty) return;
+      
+      await _firestore
+          .collection('dietary_criteria')
+          .doc(cleanCriteria.toLowerCase().replaceAll(' ', '_'))
+          .set({
+            'name': cleanCriteria,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+    } catch (e) {
+      print('Error adding dietary criteria: $e');
+      throw Exception('Failed to add dietary criteria: $e');
+    }
+  }
+
+  /// Normalize dietary criteria to Title Case
+  String _normalizeDietaryCriteria(String criteria) {
+    if (criteria.isEmpty) return criteria;
+    
+    // Convert to Title Case (first letter of each word uppercase)
+    return criteria.split(' ').map((word) {
+      if (word.isEmpty) return word;
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
+  }
+
+  /// Search dietary criteria based on query
+  Future<List<String>> searchDietaryCriteria(String query) async {
+    try {
+      if (query.isEmpty) {
+        return await getAllDietaryCriteria();
+      }
+      
+      // Normalize query to Title Case for case-insensitive search
+      final normalizedQuery = _normalizeDietaryCriteria(query);
+      
+      QuerySnapshot querySnapshot = await _firestore
+          .collection('dietary_criteria')
+          .where('name', isGreaterThanOrEqualTo: normalizedQuery)
+          .where('name', isLessThan: '$normalizedQuery\uf8ff')
+          .orderBy('name')
+          .limit(10)
+          .get();
+      
+      return querySnapshot.docs
+          .map((doc) => doc.data() as Map<String, dynamic>)
+          .map((data) => data['name'] as String)
+          .toList();
+    } catch (e) {
+      print('Error searching dietary criteria: $e');
+      return [];
+    }
+  }
 }
 
 /// Result class for pagination

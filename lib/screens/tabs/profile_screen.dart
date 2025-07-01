@@ -8,6 +8,7 @@ import 'package:image_cropper/image_cropper.dart';
 import 'dart:io';
 import 'package:forking/screens/welcome_screen.dart';
 import 'package:forking/services/recipe_service.dart';
+import 'package:forking/screens/tabs/add_recipe_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -299,13 +300,11 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
   /// Show profile photo overlay
   void _showProfilePhotoOverlay() {
-    print('_showProfilePhotoOverlay called'); // Debug
     if (_isUpdatingProfileImage) return;
     
     setState(() {
       _showProfileOverlay = true;
     });
-    print('_showProfileOverlay set to true'); // Debug
     
     // Auto-hide overlay after 3 seconds
     Future.delayed(const Duration(seconds: 3), () {
@@ -313,15 +312,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         setState(() {
           _showProfileOverlay = false;
         });
-        print('_showProfileOverlay auto-hidden'); // Debug
       }
-    });
-  }
-
-  /// Hide profile photo overlay
-  void _hideProfilePhotoOverlay() {
-    setState(() {
-      _showProfileOverlay = false;
     });
   }
 
@@ -1065,8 +1056,15 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
   Widget _buildAddRecipeCard() {
     return GestureDetector(
-      onTap: () {
-        Navigator.pushNamed(context, '/add-recipe');
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AddRecipeScreen(
+              onRecipeAdded: _loadRecipes,
+            ),
+          ),
+        );
       },
       child: Container(
         decoration: BoxDecoration(

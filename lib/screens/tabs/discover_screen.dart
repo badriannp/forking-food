@@ -4,7 +4,6 @@ import 'package:forking/models/recipe.dart';
 import 'package:forking/widgets/recipe_card.dart';
 import 'package:forking/services/recipe_service.dart';
 import 'package:forking/services/auth_service.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class DiscoverScreen extends StatefulWidget {
   const DiscoverScreen({super.key});

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:forking/utils/constants.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
