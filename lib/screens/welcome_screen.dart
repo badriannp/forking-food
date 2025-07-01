@@ -68,51 +68,51 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     }
   }
 
-  Future<void> _signInWithFacebook() async {
-    setState(() {
-      _isLoading = true;
-    });
+  // Future<void> _signInWithFacebook() async {
+  //   setState(() {
+  //     _isLoading = true;
+  //   });
 
-    try {
-      final authService = AuthService();
-      final userCredential = await authService.signInWithFacebook();
+  //   try {
+  //     final authService = AuthService();
+  //     final userCredential = await authService.signInWithFacebook();
       
-      if (userCredential != null) {
-        // Successfully signed in
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const MainScreen()),
-          );
-        }
-      } else {
-        // User cancelled or error occurred
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Facebook sign in was cancelled or failed'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error signing in with Facebook: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
+  //     if (userCredential != null) {
+  //       // Successfully signed in
+  //       if (mounted) {
+  //         Navigator.pushReplacement(
+  //           context,
+  //           MaterialPageRoute(builder: (_) => const MainScreen()),
+  //         );
+  //       }
+  //     } else {
+  //       // User cancelled or error occurred
+  //       if (mounted) {
+  //         ScaffoldMessenger.of(context).showSnackBar(
+  //           const SnackBar(
+  //             content: Text('Facebook sign in was cancelled or failed'),
+  //             backgroundColor: Colors.orange,
+  //           ),
+  //         );
+  //       }
+  //     }
+  //   } catch (e) {
+  //     if (mounted) {
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(
+  //           content: Text('Error signing in with Facebook: $e'),
+  //           backgroundColor: Colors.red,
+  //         ),
+  //       );
+  //     }
+  //   } finally {
+  //     if (mounted) {
+  //       setState(() {
+  //         _isLoading = false;
+  //       });
+  //     }
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {

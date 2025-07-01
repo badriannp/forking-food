@@ -78,7 +78,6 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (e) {
-      print('Error loading initial recipes: $e');
       if (mounted) {
         setState(() {
           isInitialLoading = false;
@@ -116,7 +115,6 @@ class _HomeScreenState extends State<HomeScreen> {
         isLoading = false;
       });
     } catch (e) {
-      print('Error loading more recipes: $e');
       setState(() {
         isLoading = false;
       });
@@ -164,7 +162,6 @@ class _HomeScreenState extends State<HomeScreen> {
         isInitialLoading = false;
       });
     } catch (e) {
-      print('Error reloading recipes with filters: $e');
       setState(() {
         isLoading = false;
         isInitialLoading = false;
@@ -187,7 +184,6 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (e) {
-      print('Error loading dietary criteria: $e');
       if (mounted) {
         setState(() {
           isLoadingDietaryCriteria = false;

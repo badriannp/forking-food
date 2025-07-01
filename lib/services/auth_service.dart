@@ -45,7 +45,6 @@ class AuthService {
 
       return Uint8List.fromList(img.encodeJpg(finalImage, quality: 85));
     } catch (e) {
-      print('Error compressing profile image: $e');
       // Fallback to original image if compression fails
       return await imageFile.readAsBytes();
     }
@@ -76,11 +75,6 @@ class AuthService {
       
       // Process Google profile photo for new users
       if (userCredential.additionalUserInfo?.isNewUser == true) {
-        print('Google user data:');
-        print('- Display name: ${googleUser.displayName}');
-        print('- Email: ${googleUser.email}');
-        print('- Photo URL: ${googleUser.photoUrl}');
-        
         await _createUserDataForGoogleSignIn(
           userId: userCredential.user!.uid,
           googlePhotoURL: googleUser.photoUrl,
@@ -90,7 +84,6 @@ class AuthService {
       
       return userCredential;
     } catch (e) {
-      print('Error signing in with Google: $e');
       return null;
     }
   }
@@ -118,11 +111,6 @@ class AuthService {
       
       // Process Facebook profile data for new users
       if (userCredential.additionalUserInfo?.isNewUser == true) {
-        print('Facebook user data:');
-        print('- Display name: ${userCredential.user?.displayName}');
-        print('- Email: ${userCredential.user?.email}');
-        print('- Photo URL: ${userCredential.user?.photoURL}');
-        
         await _createUserDataForFacebookSignIn(
           userId: userCredential.user!.uid,
           facebookPhotoURL: userCredential.user?.photoURL,
@@ -132,7 +120,6 @@ class AuthService {
       
       return userCredential;
     } catch (e) {
-      print('Error signing in with Facebook: $e');
       return null;
     }
   }
@@ -144,7 +131,6 @@ class AuthService {
     String? displayName,
   }) async {
     try {
-      print('Creating user data with displayName: "$displayName"');
       
       // Better fallback: use email prefix if no display name
       String finalDisplayName = displayName ?? 'User';
@@ -153,7 +139,6 @@ class AuthService {
         if (email != null && email.isNotEmpty) {
           // Use email prefix (before @) as display name
           finalDisplayName = email.split('@')[0];
-          print('Using email prefix as display name: $finalDisplayName');
         }
       }
       
@@ -163,14 +148,10 @@ class AuthService {
         return;
       }
 
-      print('Using Google profile photo URL directly for user: $userId');
-      print('Google photo URL: $googlePhotoURL');
-
       // Create user data with Google photo URL (no copying)
       await _createUserData(userId, finalDisplayName, googlePhotoURL);
 
     } catch (e) {
-      print('Error creating user data for Google sign-in: $e');
       // Fallback to creating user data without photo
       await _createUserData(userId, displayName ?? 'User');
     }
@@ -183,7 +164,6 @@ class AuthService {
     String? displayName,
   }) async {
     try {
-      print('Creating user data with displayName: "$displayName"');
       
       // Better fallback: use email prefix if no display name
       String finalDisplayName = displayName ?? 'User';
@@ -192,7 +172,6 @@ class AuthService {
         if (email != null && email.isNotEmpty) {
           // Use email prefix (before @) as display name
           finalDisplayName = email.split('@')[0];
-          print('Using email prefix as display name: $finalDisplayName');
         }
       }
       
@@ -202,14 +181,10 @@ class AuthService {
         return;
       }
 
-      print('Using Facebook profile photo URL directly for user: $userId');
-      print('Facebook photo URL: $facebookPhotoURL');
-
       // Create user data with Facebook photo URL (no copying)
       await _createUserData(userId, finalDisplayName, facebookPhotoURL);
 
     } catch (e) {
-      print('Error creating user data for Facebook sign-in: $e');
       // Fallback to creating user data without photo
       await _createUserData(userId, displayName ?? 'User');
     }
@@ -228,10 +203,9 @@ class AuthService {
       );
       
       await _userService.createOrUpdateUser(userData);
-      print('Created user data for: $userId');
       
     } catch (e) {
-      print('Error creating user data: $e');
+      // Error creating user data 
     }
   }
 
@@ -244,7 +218,7 @@ class AuthService {
         _facebookAuth.logOut(),
       ]);
     } catch (e) {
-      print('Error signing out: $e');
+      // Error signing out
     }
   }
 
@@ -253,32 +227,21 @@ class AuthService {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId == null) {
-        print('Error: No authenticated user found');
         return null;
       }
 
-      print('Uploading profile image for user: $userId');
-      print('Image file path: ${imageFile.path}');
-      print('Image file exists: ${await imageFile.exists()}');
-
       // Compress the image before upload
       final compressedImageData = await _compressProfileImage(imageFile);
-      print('Compressed image size: ${compressedImageData.length} bytes');
       
       final storageRef = _storage.ref().child('profile_images/$userId.jpg');
-      print('Storage reference path: ${storageRef.fullPath}');
       
       final uploadTask = storageRef.putData(compressedImageData);
       final snapshot = await uploadTask;
-      print('Upload completed successfully');
       
       final downloadURL = await snapshot.ref.getDownloadURL();
-      print('Download URL: $downloadURL');
       
       return downloadURL;
     } catch (e) {
-      print('Error uploading profile image: $e');
-      print('Error type: ${e.runtimeType}');
       return null;
     }
   }
@@ -291,7 +254,7 @@ class AuthService {
         await _auth.currentUser?.updatePhotoURL(photoURL);
       }
     } catch (e) {
-      print('Error updating user profile: $e');
+      // Error updating user profile
     }
   }
 
@@ -308,8 +271,7 @@ class AuthService {
       await _userService.updateUserDisplayName(userId, displayName);
       
     } catch (e) {
-      print('Error updating display name: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -326,8 +288,7 @@ class AuthService {
       await _userService.updateUserPhotoURL(userId, photoURL);
       
     } catch (e) {
-      print('Error updating photo URL: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -341,8 +302,7 @@ class AuthService {
         throw Exception('Failed to upload image');
       }
     } catch (e) {
-      print('Error updating profile image: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -371,10 +331,8 @@ class AuthService {
       try {
         // Try to get existing user data
         await _userService.getUserData(userId);
-        print('User data already exists for: $userId');
       } catch (e) {
         // User data doesn't exist, create it
-        print('Creating user data for existing email/password user: $userId');
         await _createUserData(
           userId, 
           userCredential.user?.displayName ?? 'User',

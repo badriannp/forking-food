@@ -16,17 +16,14 @@ class UserService {
     try {
       // Check if we have valid cached data
       if (_isCacheValid(userId)) {
-        print('Using cached user data for: $userId');
         return _userCache[userId]!;
       }
 
-      print('Loading user data from Firestore for: $userId');
-      
       // Load from Firestore
       final userDoc = await _firestore.collection('users').doc(userId).get();
       
       if (!userDoc.exists) {
-        print('User document not found: $userId');
+        // User document not found
         throw Exception('User not found: $userId');
       }
 
@@ -36,11 +33,10 @@ class UserService {
       _userCache[userId] = userData;
       _cacheTimestamps[userId] = DateTime.now();
       
-      print('Cached user data for: $userId - Name: ${userData.displayName}, Photo: ${userData.photoURL}');
       return userData;
       
     } catch (e) {
-      print('Error loading user data for $userId: $e');
+      // Error loading user data
       throw Exception('Failed to load user data: $e');
     }
   }
@@ -62,7 +58,6 @@ class UserService {
 
       // Load missing users from Firestore
       if (usersToLoad.isNotEmpty) {
-        print('Loading ${usersToLoad.length} users from Firestore');
         
         // Load in batches of 10 (Firestore limit)
         const int batchSize = 10;
@@ -88,7 +83,7 @@ class UserService {
       return result;
       
     } catch (e) {
-      print('Error loading multiple users data: $e');
+      // Error loading multiple users data
       throw Exception('Failed to load multiple users data: $e');
     }
   }
@@ -105,10 +100,8 @@ class UserService {
       _userCache[userData.id] = userData;
       _cacheTimestamps[userData.id] = DateTime.now();
       
-      print('Updated user data for: ${userData.id}');
-      
     } catch (e) {
-      print('Error creating/updating user data: $e');
+      // Error creating/updating user data
       throw Exception('Failed to create/update user data: $e');
     }
   }
@@ -130,10 +123,7 @@ class UserService {
         _cacheTimestamps[userId] = DateTime.now();
       }
       
-      print('Updated display name for user: $userId');
-      
     } catch (e) {
-      print('Error updating user display name: $e');
       throw Exception('Failed to update user display name: $e');
     }
   }
@@ -155,10 +145,7 @@ class UserService {
         _cacheTimestamps[userId] = DateTime.now();
       }
       
-      print('Updated photo URL for user: $userId');
-      
     } catch (e) {
-      print('Error updating user photo URL: $e');
       throw Exception('Failed to update user photo URL: $e');
     }
   }
@@ -167,14 +154,12 @@ class UserService {
   void clearUserCache(String userId) {
     _userCache.remove(userId);
     _cacheTimestamps.remove(userId);
-    print('Cleared cache for user: $userId');
   }
 
   /// Clear all cache
   void clearAllCache() {
     _userCache.clear();
     _cacheTimestamps.clear();
-    print('Cleared all user cache');
   }
 
   /// Check if cache is valid for a user

@@ -58,7 +58,6 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
         isLoadingYesterday = false;
       });
     } catch (e) {
-      print('Error loading today leaderboard: $e');
       setState(() {
         isLoadingYesterday = false;
       });
@@ -86,7 +85,6 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
         isLoadingRecommendations = false;
       });
     } catch (e) {
-      print('Error loading recommendations: $e');
       setState(() {
         isLoadingRecommendations = false;
       });

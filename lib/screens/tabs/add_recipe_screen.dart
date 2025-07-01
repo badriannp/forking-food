@@ -95,26 +95,10 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         _isLoadingTags = false;
       });
     } catch (e) {
-      print('Error loading tags: $e');
       setState(() {
         _isLoadingTags = false;
       });
     }
-  }
-
-  /// Search tags based on input
-  Future<void> _searchTags(String query) async {
-    final trimmedQuery = query.trim();
-    if (trimmedQuery.isEmpty) {
-      // Don't reload from database, just show all local tags
-      setState(() {
-        // Keep the current _localTags as is
-      });
-      return;
-    }
-    
-    // Don't search in database, just filter the local list
-    // The filtering is done in the UI based on _tagInput
   }
 
   /// Add a new tag to local list and selected list
@@ -156,26 +140,10 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         _isLoadingDietaryCriteria = false;
       });
     } catch (e) {
-      print('Error loading dietary criteria: $e');
       setState(() {
         _isLoadingDietaryCriteria = false;
       });
     }
-  }
-
-  /// Search dietary criteria based on input
-  Future<void> _searchDietaryCriteria(String query) async {
-    final trimmedQuery = query.trim();
-    if (trimmedQuery.isEmpty) {
-      // Don't reload from database, just show all local criteria
-      setState(() {
-        // Keep the current _localDietary as is
-      });
-      return;
-    }
-    
-    // Don't search in database, just filter the local list
-    // The filtering is done in the UI based on _dietaryInput
   }
 
   /// Add a new dietary criteria to local list and selected list
@@ -498,9 +466,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         if (!existingTags.contains(tag)) {
           try {
             await _recipeService.addTag(tag);
-            print('Uploaded new tag: $tag');
           } catch (e) {
-            print('Failed to upload tag $tag: $e');
             // Continue with recipe upload even if tag upload fails
           }
         }
@@ -512,9 +478,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         if (!existingCriteria.contains(criteria)) {
           try {
             await _recipeService.addDietaryCriteria(criteria);
-            print('Uploaded new dietary criteria: $criteria');
           } catch (e) {
-            print('Failed to upload dietary criteria $criteria: $e');
             // Continue with recipe upload even if dietary criteria upload fails
           }
         }
@@ -1326,7 +1290,6 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
             setState(() {
               _tagInput = value;
             });
-            _searchTags(value);
           },
           onSubmitted: (value) {
             final tag = value.trim();
@@ -1450,7 +1413,6 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
               setState(() {
                 _dietaryInput = value;
               });
-              _searchDietaryCriteria(value);
             },
             onSubmitted: (value) {
               final criteria = value.trim();

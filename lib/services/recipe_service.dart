@@ -64,7 +64,6 @@ class RecipeService {
 
       return recipe.id;
     } catch (e) {
-      print('Error saving recipe: $e');
       throw Exception('Failed to save recipe: $e');
     }
   }
@@ -88,7 +87,6 @@ class RecipeService {
       TaskSnapshot snapshot = await uploadTask;
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
-      print('Error uploading image: $e');
       throw Exception('Failed to upload image: $e');
     }
   }
@@ -127,7 +125,7 @@ class RecipeService {
         await recipeRef.update({'forkOutCount': FieldValue.increment(1)});
       }
     } catch (e) {
-      print('Error saving swipe: $e');
+      // Error saving swipe
     }
   }
 
@@ -199,7 +197,7 @@ class RecipeService {
           }, SetOptions(merge: true));
       
     } catch (e) {
-      print('Error updating user preference scores: $e');
+      // Error updating user preference scores
     }
   }
 
@@ -218,7 +216,7 @@ class RecipeService {
             }
           }, SetOptions(merge: true));
     } catch (e) {
-      print('Error incrementing daily like: $e');
+      // Error incrementing daily like
     }
   }
 
@@ -293,7 +291,7 @@ class RecipeService {
       
       return recipes;
     } catch (e) {
-      print('Error getting today leaderboard: $e');
+      // Error getting today leaderboard
       return [];
     }
   }
@@ -317,9 +315,8 @@ class RecipeService {
       }
       
       await batch.commit();
-      print('Cleaned up ${snapshot.docs.length - 1} old daily likes documents');
     } catch (e) {
-      print('Error cleaning up old daily likes: $e');
+      // Error cleaning up old daily likes
     }
   }
 
@@ -342,7 +339,7 @@ class RecipeService {
       return await _loadCreatorDataForRecipes(recipes);
       
     } catch (e) {
-      print('Error getting user recipes: $e');
+      // Error getting user recipes
       return [];
     }
   }
@@ -397,7 +394,7 @@ class RecipeService {
       return await _loadCreatorDataForRecipes(recipes);
       
     } catch (e) {
-      print('Error getting saved recipes: $e');
+      // Error getting saved recipes
       return [];
     }
   }
@@ -407,17 +404,14 @@ class RecipeService {
     try {
       // Get unique creator IDs
       final creatorIds = recipes.map((r) => r.creatorId).toSet().toList();
-      print('Loading creator data for ${creatorIds.length} unique creators: $creatorIds');
       
       // Load creator data from UserService
       final creatorData = await _userService.getMultipleUsersData(creatorIds);
-      print('Loaded creator data for ${creatorData.length} users');
       
       // Update recipes with creator data
       return recipes.map((recipe) {
         final creator = creatorData[recipe.creatorId];
         if (creator != null) {
-          print('Updating recipe ${recipe.id} with creator: ${creator.displayName}');
           return Recipe(
             id: recipe.id,
             title: recipe.title,
@@ -437,13 +431,13 @@ class RecipeService {
             dietaryCriteria: recipe.dietaryCriteria,
           );
         } else {
-          print('No creator data found for recipe ${recipe.id} with creatorId: ${recipe.creatorId}');
+          // No creator data found for recipe
         }
         return recipe;
       }).toList();
       
     } catch (e) {
-      print('Error loading creator data: $e');
+      // Error loading creator data
       return recipes; // Return original recipes if loading fails
     }
   }
@@ -510,7 +504,7 @@ class RecipeService {
         hasMore: snapshot.docs.length == limit,
       );
     } catch (e) {
-      print('Error getting recipes for feed: $e');
+      // Error getting recipes for feed
       return RecipePaginationResult(
         recipes: [],
         lastDocument: null,
@@ -569,7 +563,6 @@ class RecipeService {
           try {
             await item.delete();
           } catch (e) {
-            print('Warning: Could not delete file ${item.fullPath}: $e');
             // Continue with other files
           }
         }
@@ -582,19 +575,19 @@ class RecipeService {
               try {
                 await item.delete();
               } catch (e) {
-                print('Warning: Could not delete file ${item.fullPath}: $e');
+                // Could not delete file
               }
             }
           } catch (e) {
-            print('Warning: Could not list subfolder ${prefix.fullPath}: $e');
+            // Could not list subfolder
           }
         }
       } catch (e) {
         // If the folder doesn't exist, that's fine - just log it
         if (e.toString().contains('object-not-found')) {
-          print('Info: Recipe images folder does not exist, skipping deletion');
+          // Recipe images folder does not exist, skipping deletion
         } else {
-          print('Warning: Could not delete recipe images: $e');
+          // Could not delete recipe images
         }
         // Continue even if image deletion fails
       }
@@ -603,7 +596,7 @@ class RecipeService {
       await batch.commit();
 
     } catch (e) {
-      print('Error deleting recipe: $e');
+      // Error deleting recipe
       throw Exception('Failed to delete recipe: $e');
     }
   }
@@ -624,7 +617,7 @@ class RecipeService {
       
       return [];
     } catch (e) {
-      print('Error getting tags: $e');
+      // Error getting tags
       return [];
     }
   }
@@ -639,7 +632,7 @@ class RecipeService {
             'tags': FieldValue.arrayUnion([tag])
           }, SetOptions(merge: true));
     } catch (e) {
-      print('Error adding tag: $e');
+      // Error adding tag
       throw Exception('Failed to add tag: $e');
     }
   }
@@ -657,7 +650,7 @@ class RecipeService {
           .where((tag) => tag.toLowerCase().contains(query.toLowerCase()))
           .toList();
     } catch (e) {
-      print('Error searching tags: $e');
+      // Error searching tags
       return [];
     }
   }
@@ -769,7 +762,7 @@ class RecipeService {
       return await _loadCreatorDataForRecipes(topRecipes);
       
     } catch (e) {
-      print('Error getting personalized recommendations: $e');
+      // Error getting personalized recommendations
       // Fallback to empty list if recommendation algorithm fails
       return [];
     }
@@ -798,7 +791,7 @@ class RecipeService {
       
       return recipes;
     } catch (e) {
-      print('Error getting recipes by IDs: $e');
+      // Error getting recipes by IDs
       return [];
     }
   }
@@ -826,7 +819,7 @@ class RecipeService {
           .map((data) => data['name'] as String)
           .toList();
     } catch (e) {
-      print('Error loading dietary criteria: $e');
+      // Error loading dietary criteria
       // Return default list if database fails
       return [
         'Vegan',
@@ -876,7 +869,7 @@ class RecipeService {
               'createdAt': FieldValue.serverTimestamp(),
             });
       } catch (e) {
-        print('Error adding default dietary criteria $criteria: $e');
+        // Error adding default dietary criteria
       }
     }
   }
@@ -895,7 +888,7 @@ class RecipeService {
             'createdAt': FieldValue.serverTimestamp(),
           });
     } catch (e) {
-      print('Error adding dietary criteria: $e');
+      // Error adding dietary criteria
       throw Exception('Failed to add dietary criteria: $e');
     }
   }
@@ -934,7 +927,6 @@ class RecipeService {
           .map((data) => data['name'] as String)
           .toList();
     } catch (e) {
-      print('Error searching dietary criteria: $e');
       return [];
     }
   }
