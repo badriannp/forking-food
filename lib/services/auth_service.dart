@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import 'dart:typed_data';
@@ -10,6 +11,7 @@ import 'user_service.dart';
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final FacebookAuth _facebookAuth = FacebookAuth.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final UserService _userService = UserService();
 
@@ -93,6 +95,48 @@ class AuthService {
     }
   }
 
+  // Facebook Sign-In
+  Future<UserCredential?> signInWithFacebook() async {
+    try {
+      // Trigger the authentication flow
+      final LoginResult result = await _facebookAuth.login(
+        permissions: ['email', 'public_profile'],
+      );
+      
+      if (result.status != LoginStatus.success) {
+        // User cancelled the sign-in
+        return null;
+      }
+
+      // Create a credential from the access token
+      final OAuthCredential credential = FacebookAuthProvider.credential(
+        result.accessToken!.tokenString,
+      );
+
+      // Sign in to Firebase with the credential
+      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      
+      // Process Facebook profile data for new users
+      if (userCredential.additionalUserInfo?.isNewUser == true) {
+        print('Facebook user data:');
+        print('- Display name: ${userCredential.user?.displayName}');
+        print('- Email: ${userCredential.user?.email}');
+        print('- Photo URL: ${userCredential.user?.photoURL}');
+        
+        await _createUserDataForFacebookSignIn(
+          userId: userCredential.user!.uid,
+          facebookPhotoURL: userCredential.user?.photoURL,
+          displayName: userCredential.user?.displayName,
+        );
+      }
+      
+      return userCredential;
+    } catch (e) {
+      print('Error signing in with Facebook: $e');
+      return null;
+    }
+  }
+
   /// Create user data for new Google sign-in users
   Future<void> _createUserDataForGoogleSignIn({
     required String userId,
@@ -132,6 +176,45 @@ class AuthService {
     }
   }
 
+  /// Create user data for new Facebook sign-in users
+  Future<void> _createUserDataForFacebookSignIn({
+    required String userId,
+    String? facebookPhotoURL,
+    String? displayName,
+  }) async {
+    try {
+      print('Creating user data with displayName: "$displayName"');
+      
+      // Better fallback: use email prefix if no display name
+      String finalDisplayName = displayName ?? 'User';
+      if (displayName == null || displayName.isEmpty) {
+        final email = _auth.currentUser?.email;
+        if (email != null && email.isNotEmpty) {
+          // Use email prefix (before @) as display name
+          finalDisplayName = email.split('@')[0];
+          print('Using email prefix as display name: $finalDisplayName');
+        }
+      }
+      
+      if (facebookPhotoURL == null || facebookPhotoURL.isEmpty) {
+        // No photo from Facebook, just create user data with display name
+        await _createUserData(userId, finalDisplayName);
+        return;
+      }
+
+      print('Using Facebook profile photo URL directly for user: $userId');
+      print('Facebook photo URL: $facebookPhotoURL');
+
+      // Create user data with Facebook photo URL (no copying)
+      await _createUserData(userId, finalDisplayName, facebookPhotoURL);
+
+    } catch (e) {
+      print('Error creating user data for Facebook sign-in: $e');
+      // Fallback to creating user data without photo
+      await _createUserData(userId, displayName ?? 'User');
+    }
+  }
+
   /// Create user data in centralized system
   Future<void> _createUserData(String userId, String displayName, [String? photoURL]) async {
     try {
@@ -158,6 +241,7 @@ class AuthService {
       await Future.wait([
         _auth.signOut(),
         _googleSignIn.signOut(),
+        _facebookAuth.logOut(),
       ]);
     } catch (e) {
       print('Error signing out: $e');

@@ -25,9 +25,9 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     _screens = [
       const DiscoverScreen(),
-      const HomeScreen(),
-      const ProfileScreen(),
-    ];
+    const HomeScreen(),
+    const ProfileScreen(),
+  ];
   }
 
   void _updateSelectedIndex(int index) {

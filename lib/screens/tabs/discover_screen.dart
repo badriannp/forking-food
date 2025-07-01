@@ -4,6 +4,7 @@ import 'package:forking/models/recipe.dart';
 import 'package:forking/widgets/recipe_card.dart';
 import 'package:forking/services/recipe_service.dart';
 import 'package:forking/services/auth_service.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class DiscoverScreen extends StatefulWidget {
   const DiscoverScreen({super.key});
@@ -278,44 +279,77 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // Titlu rețetă
                     Text(
                       recipe.title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
+                    // Avatar + nume creator
                     Row(
                       children: [
-                        Icon(
-                          Icons.favorite,
-                          size: 16,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${recipe.forkInCount} likes',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                        if (recipe.creatorPhotoURL != null && recipe.creatorPhotoURL!.isNotEmpty)
+                          CircleAvatar(
+                            radius: 10,
+                            backgroundImage: NetworkImage(recipe.creatorPhotoURL!),
+                          )
+                        else
+                          Container(
+                            width: 20,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.person,
+                                size: 12,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            recipe.creatorName ?? 'Unknown Chef',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
+                    // Fork-ins
                     Row(
                       children: [
                         Icon(
-                          Icons.access_time,
+                          Icons.restaurant,
                           size: 16,
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          recipe.forkInCount.toString(),
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          _formatDuration(recipe.totalEstimatedTime),
+                          'fork-ins',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         ),
                       ],

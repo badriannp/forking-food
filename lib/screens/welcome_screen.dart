@@ -69,6 +69,52 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     }
   }
 
+  Future<void> _signInWithFacebook() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final authService = AuthService();
+      final userCredential = await authService.signInWithFacebook();
+      
+      if (userCredential != null) {
+        // Successfully signed in
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const MainScreen()),
+          );
+        }
+      } else {
+        // User cancelled or error occurred
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Facebook sign in was cancelled or failed'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error signing in with Facebook: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -112,7 +158,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                   letterSpacing: 0.2,
                               ),
                             ),
-                            const SizedBox(height: 144),
+                            const SizedBox(height: 96),
                             
                             _LoginButton(
                               icon: _isLoading 
@@ -136,17 +182,30 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                               textColor: Theme.of(context).colorScheme.onSurface,
                               onPressed: _isLoading ? null : () => _signInWithGoogle(),
                             ),
-                            const SizedBox(height: 16),
-                            _LoginButton(
-                              icon: Icon(Icons.facebook, color: Theme.of(context).colorScheme.onPrimary, size: 20),
-                              text: 'Continue with Facebook',
-                              color: AppColors.facebookBlue,
-                              textColor: Theme.of(context).colorScheme.onPrimary,
-                              onPressed: () {
-                                // Facebook login logic
-                              },
-                            ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 8),
+                            // _LoginButton(
+                            //   icon: _isLoading 
+                            //       ? SizedBox(
+                            //           height: 20,
+                            //           width: 20,
+                            //           child: CircularProgressIndicator(
+                            //             strokeWidth: 2,
+                            //             valueColor: AlwaysStoppedAnimation<Color>(
+                            //               Theme.of(context).colorScheme.onPrimary,
+                            //             ),
+                            //           ),
+                            //         )
+                            //       : SvgPicture.asset(
+                            //           'assets/facebook_logo.svg',
+                            //           height: 20,
+                            //           width: 20,
+                            //         ),
+                            //   text: _isLoading ? 'Signing in...' : 'Continue with Facebook',
+                            //   color: AppColors.facebookBlue,
+                            //   textColor: Theme.of(context).colorScheme.onPrimary,
+                            //   onPressed: _isLoading ? null : () => _signInWithFacebook(),
+                            // ),
+                            // const SizedBox(height: 16),
                             Row(
                               children: [
                                 Expanded(child: Divider(thickness: 1, indent: 12, color: Theme.of(context).colorScheme.onPrimary.withAlpha(180), endIndent: 12)),
@@ -154,7 +213,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 Expanded(child: Divider(thickness: 1, indent: 12, color: Theme.of(context).colorScheme.onPrimary.withAlpha(180), endIndent: 12)),
                               ],
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 8),
                             _LoginButton(
                               icon: Icon(Icons.email, color: Theme.of(context).colorScheme.onSurface.withAlpha(220)),
                               text: 'Log in using your email',

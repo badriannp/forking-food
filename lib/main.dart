@@ -22,65 +22,65 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Forking',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: const ColorScheme(
-          brightness: Brightness.light,
-          primary: AppColors.carrotYellow,
-          onPrimary: AppColors.onPrimary,
-          secondary: AppColors.darkGreen,
-          onSecondary: AppColors.onSecondary,
-          error: AppColors.error,
-          onError: AppColors.onPrimary,
-          surface: AppColors.surface,
-          onSurface: AppColors.onSurface,
-          tertiary: AppColors.accent,
-          onTertiary: AppColors.onPrimary,
-        ),
-        scaffoldBackgroundColor: AppColors.surface,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.transparent,
-          foregroundColor: AppColors.onSurface,
-          elevation: 0,
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.carrotYellow,
-            foregroundColor: AppColors.onPrimary,
-            minimumSize: const Size(double.infinity, 48),
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(12)),
+          return MaterialApp(
+            title: 'Forking',
+            debugShowCheckedModeBanner: false,
+            theme: ThemeData(
+              colorScheme: const ColorScheme(
+                brightness: Brightness.light,
+                primary: AppColors.carrotYellow,
+                onPrimary: AppColors.onPrimary,
+                secondary: AppColors.darkGreen,
+                onSecondary: AppColors.onSecondary,
+                error: AppColors.error,
+                onError: AppColors.onPrimary,
+                surface: AppColors.surface,
+                onSurface: AppColors.onSurface,
+                tertiary: AppColors.accent,
+                onTertiary: AppColors.onPrimary,
+              ),
+              scaffoldBackgroundColor: AppColors.surface,
+              appBarTheme: const AppBarTheme(
+                backgroundColor: Colors.transparent,
+                foregroundColor: AppColors.onSurface,
+                elevation: 0,
+              ),
+              elevatedButtonTheme: ElevatedButtonThemeData(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.carrotYellow,
+                  foregroundColor: AppColors.onPrimary,
+                  minimumSize: const Size(double.infinity, 48),
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                  ),
+                ),
+              ),
+              textButtonTheme: TextButtonThemeData(
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.darkGreen,
+                ),
+              ),
+              inputDecorationTheme: const InputDecorationTheme(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.border),
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.carrotYellow, width: 2),
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                ),
+              ),
+              useMaterial3: true,
             ),
-          ),
-        ),
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(
-            foregroundColor: AppColors.darkGreen,
-          ),
-        ),
-        inputDecorationTheme: const InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.all(Radius.circular(12)),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: AppColors.border),
-            borderRadius: BorderRadius.all(Radius.circular(12)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: AppColors.carrotYellow, width: 2),
-            borderRadius: BorderRadius.all(Radius.circular(12)),
-          ),
-        ),
-        useMaterial3: true,
-      ),
       routes: {
         '/add-recipe': (context) => const AddRecipeScreen(),
       },
       home: const AppEntryPoint(),
-    );
-  }
+          );
+        }
 }
 
 class AppEntryPoint extends StatelessWidget {

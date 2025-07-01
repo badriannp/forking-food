@@ -245,7 +245,16 @@ class _HomeScreenState extends State<HomeScreen> {
             width: constraints.maxWidth,
             height: constraints.maxHeight,
             child: recipesToShow.isEmpty || hasReachedEnd
-                ? _buildNoRecipesView()
+                ? RefreshIndicator(
+                    onRefresh: _loadInitialRecipes,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: SizedBox(
+                        height: constraints.maxHeight,
+                        child: _buildNoRecipesView(),
+                      ),
+                    ),
+                  )
                 : Stack(
                         children: [
                           CardSwiper(
@@ -264,9 +273,76 @@ class _HomeScreenState extends State<HomeScreen> {
                               down: false,
                             ),
                             cardBuilder: (BuildContext context, int index, int percentThresholdX, int percentThresholdY) {
-                              return RecipeCard(
-                                recipe: recipesToShow[index],
-                                constraints: constraints,
+                              return Stack(
+                                children: [
+                                  RecipeCard(
+                                    key: ValueKey('recipe_${recipesToShow[index].id}_$index'),
+                                    recipe: recipesToShow[index],
+                                    constraints: constraints,
+                                  ),
+                                  // FORK IN overlay (swipe dreapta)
+                                  if (percentThresholdX > 20)
+                                    Positioned(
+                                      top: 80,
+                                      left: 20,
+                                      child: Transform.rotate(
+                                        angle: -0.785, // -45 grade în radiani
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            border: Border.all(color: Colors.green, width: 2),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.thumb_up,
+                                                color: Colors.green,
+                                                size: 20,
+                                              ),
+                                              SizedBox(width: 6),
+                                              Text(
+                                                "FORK IN",
+                                                style: TextStyle(color: Colors.green, fontSize: 18, fontWeight: FontWeight.bold),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  // FORK OUT overlay (swipe stânga)
+                                  if (percentThresholdX < -20)
+                                    Positioned(
+                                      top: 80,
+                                      right: 20,
+                                      child: Transform.rotate(
+                                        angle: 0.785, // 45 grade în radiani
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            border: Border.all(color: Colors.red, width: 2),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.thumb_down,
+                                                color: Colors.red,
+                                                size: 20,
+                                              ),
+                                              SizedBox(width: 6),
+                                              Text(
+                                                "FORK OUT",
+                                                style: TextStyle(color: Colors.red, fontSize: 18, fontWeight: FontWeight.bold),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               );
                             },
                           ),
@@ -350,7 +426,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showFilterModal() {
-    // Salvează starea curentă a filtrelor
+    // Save current filter state
     final prevDietary = Set<String>.from(selectedDietaryCriteria);
     final prevMinTime = minTime;
     final prevMaxTime = maxTime;
@@ -363,7 +439,7 @@ class _HomeScreenState extends State<HomeScreen> {
       enableDrag: true,
       builder: (context) => _buildFilterBottomSheet(),
     ).then((result) {
-      // Dacă userul nu a apăsat Apply, revino la starea anterioară
+      // If user didn't press Apply, revert to previous state
       if (result != 'apply') {
         setState(() {
           selectedDietaryCriteria = prevDietary;

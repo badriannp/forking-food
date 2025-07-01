@@ -26,6 +26,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   bool _isLoading = true;
   bool _isEditingName = false;
   bool _isUpdatingProfileImage = false;
+  bool _showProfileOverlay = false;
   final TextEditingController _nameController = TextEditingController();
   final FocusNode _nameFocus = FocusNode();
   
@@ -296,6 +297,33 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     }
   }
 
+  /// Show profile photo overlay
+  void _showProfilePhotoOverlay() {
+    print('_showProfilePhotoOverlay called'); // Debug
+    if (_isUpdatingProfileImage) return;
+    
+    setState(() {
+      _showProfileOverlay = true;
+    });
+    print('_showProfileOverlay set to true'); // Debug
+    
+    // Auto-hide overlay after 3 seconds
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted && _showProfileOverlay) {
+        setState(() {
+          _showProfileOverlay = false;
+        });
+        print('_showProfileOverlay auto-hidden'); // Debug
+      }
+    });
+  }
+
+  /// Hide profile photo overlay
+  void _hideProfilePhotoOverlay() {
+    setState(() {
+      _showProfileOverlay = false;
+    });
+  }
 
   Future<void> _saveName() async {
     if (_nameController.text.trim().isNotEmpty) {
@@ -556,18 +584,23 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
           // Profile Photo with edit button
           Stack(
             children: [
-              CircleAvatar(
-                radius: 44,
-                backgroundImage: userPhotoURL != null 
-                    ? NetworkImage(userPhotoURL)
-                    : null,
-                child: userPhotoURL == null 
-                    ? Icon(
-                        Icons.person,
-                        size: 44,
-                        color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
-                      )
-                    : null,
+              // Profile photo with tap detection
+              GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: _showProfilePhotoOverlay,
+                child: CircleAvatar(
+                  radius: 44,
+                  backgroundImage: userPhotoURL != null 
+                      ? NetworkImage(userPhotoURL)
+                      : null,
+                  child: userPhotoURL == null 
+                      ? Icon(
+                          Icons.person,
+                          size: 44,
+                          color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
+                        )
+                      : null,
+                ),
               ),
               // Loading overlay
               if (_isUpdatingProfileImage)
@@ -584,26 +617,29 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                       ),
                     ),
                   ),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: GestureDetector(
-                  onTap: _isUpdatingProfileImage ? null : _pickProfileImage,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: _isUpdatingProfileImage 
-                          ? Theme.of(context).colorScheme.onSurface.withAlpha(100)
-                          : Theme.of(context).colorScheme.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      _isUpdatingProfileImage ? Icons.hourglass_empty : Icons.camera_alt,
-                      size: 16,
-                      color: _isUpdatingProfileImage 
-                          ? Theme.of(context).colorScheme.onSurface.withAlpha(150)
-                          : Theme.of(context).colorScheme.onPrimary,
+                ),
+              // Edit overlay (appears on tap)
+              Positioned.fill(
+                child: AnimatedOpacity(
+                  opacity: _showProfileOverlay && !_isUpdatingProfileImage ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 150),
+                  child: IgnorePointer(
+                    ignoring: !_showProfileOverlay || _isUpdatingProfileImage,
+                    child: GestureDetector(
+                      onTap: _pickProfileImage,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withAlpha(120),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.edit,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -683,7 +719,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 Row(
                   children: [
                     _buildStatFlex(context, Icons.kitchen, _myRecipes.length.toString(), 'Recipes'),
-                    _buildStatFlex(context, Icons.fork_left, _totalForkIns.toString(), 'Fork-ins'),
+                    _buildStatFlex(context, Icons.restaurant, _totalForkIns.toString(), 'Fork-ins'),
                   ],
                 ),
               ],
@@ -698,7 +734,6 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       height: 40,
-      // padding: const EdgeInsets.only(top: 8, left: 8, right: 8, bottom: 8),
       child: TextField(
         controller: _searchController,
         onChanged: (value) {
@@ -706,7 +741,6 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             _searchQuery = value;
           });
         },
-        
         decoration: InputDecoration(
           prefixIcon: Icon(
             Icons.search,
@@ -734,7 +768,8 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
           ),
           filled: true,
           fillColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          hintText: 'Search',
         ),
       ),
     );
