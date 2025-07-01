@@ -796,7 +796,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
           filled: true,
           fillColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
           contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-          hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          hintStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
             color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
           ),
           hintText: 'Search',

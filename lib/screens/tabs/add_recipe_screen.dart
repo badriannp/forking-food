@@ -718,6 +718,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     return PopScope(
       canPop: !_hasRecipeDataToClear,
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(
           centerTitle: true,
           scrolledUnderElevation: 0,
@@ -769,110 +770,147 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
             // Close keyboard when tapping outside input fields
             FocusScope.of(context).unfocus();
           },
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20.0),
-            controller: _scrollController,
-            child: Form(
-              key: _formKey,
-              child: Column(
-                spacing: 40,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 1. Image Picker
-                  _buildImagePicker(context),
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20.0),
+                  controller: _scrollController,
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      spacing: 40,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 1. Image Picker
+                        _buildImagePicker(context),
 
-                  // 2. Title
-                  TextFormField(
-                    controller: _titleController,
-                    focusNode: _titleFocus,
-                    textInputAction: TextInputAction.done,
-                    decoration: InputDecoration(
-                      labelText: 'Recipe Title',
-                      hintText: 'Enter your recipe title',
-                      hintStyle: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurface.withAlpha((0.3 * 255).toInt()),
-                      ),
-                      errorText: _showTitleError ? 'Please enter a title' : null,
-                    ),
-                    onChanged: (value) {
-                      setState(() {});
-                      if (_showTitleError && value.trim().isNotEmpty) {
-                        setState(() => _showTitleError = false);
-                      }
-                    },
-                    onFieldSubmitted: (_) {
-                      if (mounted && _descriptionFocus.canRequestFocus) {
-                        FocusScope.of(context).requestFocus(_descriptionFocus);
-                      }
-                    },
-                  ),
+                        // 2. Title
+                        TextFormField(
+                          controller: _titleController,
+                          focusNode: _titleFocus,
+                          textInputAction: TextInputAction.done,
+                          decoration: InputDecoration(
+                            labelText: 'Recipe Title',
+                            hintText: 'Enter your recipe title',
+                            hintStyle: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface.withAlpha((0.3 * 255).toInt()),
+                            ),
+                            errorText: _showTitleError ? 'Please enter a title' : null,
+                          ),
+                          onChanged: (value) {
+                            setState(() {});
+                            if (_showTitleError && value.trim().isNotEmpty) {
+                              setState(() => _showTitleError = false);
+                            }
+                          },
+                          onFieldSubmitted: (_) {
+                            if (mounted && _descriptionFocus.canRequestFocus) {
+                              FocusScope.of(context).requestFocus(_descriptionFocus);
+                            }
+                          },
+                        ),
 
-                  // 3. Description
-                  TextFormField(
-                    controller: _descriptionController,
-                    focusNode: _descriptionFocus,
-                    textInputAction: TextInputAction.newline,
-                    decoration: InputDecoration(
-                      labelText: 'Description',
-                      hintText: 'Describe your recipe...',
-                      hintStyle: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurface.withAlpha((0.3 * 255).toInt()),
-                      ),
-                      errorText: _showDescriptionError ? 'Please enter a description' : null,
-                    ),
-                    maxLines: 3,
-                    onChanged: (value) {
-                      setState(() {});
-                      if (_showDescriptionError && value.trim().isNotEmpty) {
-                        setState(() => _showDescriptionError = false);
-                      }
-                    },
-                    onFieldSubmitted: (_) {
-                      if (mounted && _tagFocus.canRequestFocus) {
-                        FocusScope.of(context).requestFocus(_tagFocus);
-                      }
-                    },
-                  ),
+                        // 3. Description
+                        TextFormField(
+                          controller: _descriptionController,
+                          focusNode: _descriptionFocus,
+                          textInputAction: TextInputAction.newline,
+                          decoration: InputDecoration(
+                            labelText: 'Description',
+                            hintText: 'Describe your recipe...',
+                            hintStyle: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface.withAlpha((0.3 * 255).toInt()),
+                            ),
+                            errorText: _showDescriptionError ? 'Please enter a description' : null,
+                          ),
+                          maxLines: 3,
+                          onChanged: (value) {
+                            setState(() {});
+                            if (_showDescriptionError && value.trim().isNotEmpty) {
+                              setState(() => _showDescriptionError = false);
+                            }
+                          },
+                          onFieldSubmitted: (_) {
+                            if (mounted && _tagFocus.canRequestFocus) {
+                              FocusScope.of(context).requestFocus(_tagFocus);
+                            }
+                          },
+                        ),
 
-                  // Timp total estimat
-                  _buildTotalTimeSection(),
+                        // Timp total estimat
+                        _buildTotalTimeSection(),
 
-                  // 3. Tags section
-                  _buildTagsSection(),
+                        // 3. Tags section
+                        _buildTagsSection(),
 
-                  // 4. Ingredients
-                  _buildIngredientsSection(),
+                        // 4. Ingredients
+                        _buildIngredientsSection(),
 
-                  // 5. Instructions
-                  _buildInstructionsSection(),
+                        // 5. Instructions
+                        _buildInstructionsSection(),
 
-                  // 6. Dietary Criteria
-                  _buildDietaryCriteriaSection(),
+                        // 6. Dietary Criteria
+                        _buildDietaryCriteriaSection(),
 
-                  // 7. Submit Button
-                  Center(
-                    child: ElevatedButton(
-                      onPressed: _isSaving ? null : _saveRecipe,
-                      child: _isSaving 
-                        ? const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                              SizedBox(width: 8),
-                              Text('Publishing...'),
-                            ],
-                          )
-                        : const Text('Publish Recipe'),
+                        // Extra space at bottom to ensure content is not hidden behind sticky button
+                        // SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                ],
+                ),
               ),
-            ),
+              // Sticky publish button at bottom
+              Container(
+                width: double.infinity,
+                // padding: const EdgeInsets.all(20.0),
+                padding: EdgeInsets.fromLTRB(
+                  20.0, 
+                  12.0, 
+                  20.0, 
+                  24.0 + MediaQuery.of(context).viewInsets.bottom,
+                ),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  // border: Border(
+                  //   top: BorderSide(
+                  //     color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                  //     width: 1,
+                  //   ),
+                  // ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: ElevatedButton(
+                  onPressed: _isSaving ? null : _saveRecipe,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _isSaving 
+                    ? const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          SizedBox(width: 8),
+                          Text('Publishing...'),
+                        ],
+                      )
+                    : const Text('Publish Recipe'),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -982,19 +1020,65 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                       ),
                     ),
                   )
-                : Wrap(
-                    spacing: 8.0,
-                    runSpacing: 4.0,
+                : Column(
                     children: _ingredients.asMap().entries.map((entry) {
                       int index = entry.key;
                       String item = entry.value;
-                      return Chip(
-                        label: Text(item),
-                        onDeleted: () => _removeIngredient(index),
-                        deleteIconColor: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withOpacity(0.6),
+                      return Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4.0),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '${index + 1}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(context).colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    item,
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.remove_circle_outline,
+                                    color: Theme.of(context).colorScheme.error.withOpacity(0.7),
+                                    size: 20,
+                                  ),
+                                  onPressed: () => _removeIngredient(index),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (index < _ingredients.length - 1)
+                            Divider(
+                              height: 1,
+                              thickness: 0.5,
+                              color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                              indent: 36,
+                            ),
+                        ],
                       );
                     }).toList(),
                   ),
@@ -1091,23 +1175,18 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
 
   Widget _buildInstructionsSection() {
     return Column(
-      spacing: 12,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Instructions', style: Theme.of(context).textTheme.titleLarge),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: _instructions.length,
-          itemBuilder: (context, index) {
-            return _buildInstructionStepCard(index);
-          },
-        ),
         const SizedBox(height: 12),
+        ...List.generate(_instructions.length, (index) {
+          return _buildInstructionStepCard(index);
+        }),
+        const SizedBox(height: 32),
         Center(
           child: TextButton.icon(
             icon: const Icon(Icons.add),
-            label: const Text('Add Step'),
+            label: const Text('Add step'),
             onPressed: _addInstruction,
           ),
         ),
@@ -1118,9 +1197,9 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   Widget _buildInstructionStepCard(int index) {
     final step = _instructions[index];
     return Card(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 16),
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1129,7 +1208,11 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
               children: [
                 Text(
                   'Step ${index + 1}',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).colorScheme.onSurface),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold, 
+                    fontSize: 16, 
+                    color: Theme.of(context).colorScheme.onSurface
+                  ),
                 ),
                 IconButton(
                   icon: Icon(
@@ -1273,6 +1356,12 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
             ),
             child: Column(
             children: [
+                if (!_localTags.contains(_tagInput.trim()) && _tagInput.trim().isNotEmpty)
+                ListTile(
+                    leading: const Icon(Icons.add, size: 20),
+                  title: Text('Add "${_tagInput.trim()}"'),
+                    onTap: () => _addNewTag(_tagInput.trim()),
+                ),
                 ..._localTags
                     .where((tag) => tag.toLowerCase().contains(_tagInput.trim().toLowerCase()))
                     .take(5)
@@ -1290,12 +1379,6 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                             }
                           },
                   )),
-                if (!_localTags.contains(_tagInput.trim()) && _tagInput.trim().isNotEmpty)
-                ListTile(
-                    leading: const Icon(Icons.add, size: 20),
-                  title: Text('Add "${_tagInput.trim()}"'),
-                    onTap: () => _addNewTag(_tagInput.trim()),
-                ),
             ],
           ),
           ),
@@ -1344,13 +1427,13 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         spacing: 16,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Dietary Criteria', style: Theme.of(context).textTheme.titleMedium),
+          Text('Dietary Criteria', style: Theme.of(context).textTheme.titleLarge),
           TextField(
             controller: _dietaryController,
             focusNode: _dietaryFocus,
             textInputAction: TextInputAction.go,
             decoration: InputDecoration(
-              labelText: 'Search or add dietary criteria',
+              labelText: 'Add or search criteria',
               hintText: 'e.g., Vegan, Gluten Free...',
               hintStyle: TextStyle(
                 color: Theme.of(context).colorScheme.onSurface.withAlpha((0.3 * 255).toInt()),
@@ -1388,22 +1471,6 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                 }
               }
             },
-            // onTap: () {
-            //   // Scroll to show dietary criteria section with delay to allow focus
-            //   Future.delayed(const Duration(milliseconds: 120), () {
-            //     if (mounted) {
-            //       final RenderBox? renderBox = _dietaryFocus.context?.findRenderObject() as RenderBox?;
-            //       if (renderBox != null) {
-            //         Scrollable.ensureVisible(
-            //           _dietaryFocus.context!,
-            //           duration: const Duration(milliseconds: 500),
-            //           curve: Curves.easeInOut,
-            //           alignment: 0.3, // Show at 30% from top
-            //         );
-            //       }
-            //     }
-            //   });
-            // },
           ),
           Wrap(
             spacing: 8,
