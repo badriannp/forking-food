@@ -486,87 +486,97 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        scrolledUnderElevation: 0,
-        shadowColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        backgroundColor: Colors.transparent,
-        systemOverlayStyle: SystemUiOverlayStyle.dark,
-        elevation: 0,
-        title: Text(
-          'Forking',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            fontFamily: 'EduNSWACTHand',
-            fontWeight: FontWeight.w600,
-            color: Theme.of(context).colorScheme.primary,
-            fontSize: 28,
-          ),
-        ),
-        leading: null,
-        actions: [
-          IconButton(
-            icon: Icon(
-              Icons.logout,
+    return GestureDetector(
+      onTap: () {
+        // Tap outside to save name if editing
+        if (_isEditingName) {
+          _saveName();
+        }
+        // Unfocus any active text field
+        FocusScope.of(context).unfocus();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          centerTitle: true,
+          scrolledUnderElevation: 0,
+          shadowColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          backgroundColor: Colors.transparent,
+          systemOverlayStyle: SystemUiOverlayStyle.dark,
+          elevation: 0,
+          title: Text(
+            'Forking',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              fontFamily: 'EduNSWACTHand',
+              fontWeight: FontWeight.w600,
               color: Theme.of(context).colorScheme.primary,
+              fontSize: 28,
             ),
-            onPressed: _signOut,
           ),
-        ],
-      ),
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxScrolled) {
-          return [
-            SliverToBoxAdapter(child: _buildProfileHeader(context)),
-            SliverPersistentHeader(
-              delegate: _SliverAppBarDelegate(
-                TabBar(
-                  controller: _tabController,
-                  labelColor: Theme.of(context).colorScheme.primary,
-                  unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withAlpha(150),
-                  indicatorColor: Theme.of(context).colorScheme.primary,
-                  splashFactory: NoSplash.splashFactory,
-                  tabs: const [
-                    Tab(text: 'My Recipes'),
-                    Tab(text: 'Saved'),
+        leading: null,
+          actions: [
+            IconButton(
+              icon: Icon(
+                Icons.logout,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              onPressed: _signOut,
+            ),
+          ],
+        ),
+        body: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxScrolled) {
+              return [
+                SliverToBoxAdapter(child: _buildProfileHeader(context)),
+                SliverPersistentHeader(
+                  delegate: _SliverAppBarDelegate(
+                    TabBar(
+                    controller: _tabController,
+                      labelColor: Theme.of(context).colorScheme.primary,
+                    unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withAlpha(150),
+                      indicatorColor: Theme.of(context).colorScheme.primary,
+                    splashFactory: NoSplash.splashFactory,
+                      tabs: const [
+                        Tab(text: 'My Recipes'),
+                        Tab(text: 'Saved'),
+                      ],
+                    ),
+                  ),
+                  pinned: true,
+                ),
+              ];
+            },
+            body: TabBarView(
+            controller: _tabController,
+              children: [
+              // Grid for "My Recipes" with pull-to-refresh
+              RefreshIndicator(
+                onRefresh: _refreshRecipes,
+                child: Column(
+                  children: [
+                    // Search bar for My Recipes
+                    _buildSearchBar(),
+                    Expanded(
+                      child: _buildRecipesGrid(isSaved: false),
+                    ),
                   ],
                 ),
               ),
-              pinned: true,
-            ),
-          ];
-        },
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            // Grid for "My Recipes" with pull-to-refresh
-            RefreshIndicator(
-              onRefresh: _refreshRecipes,
-              child: Column(
-                children: [
-                  // Search bar for My Recipes
-                  _buildSearchBar(),
-                  Expanded(
-                    child: _buildRecipesGrid(isSaved: false),
-                  ),
-                ],
+              // Grid for "Saved" recipes with pull-to-refresh
+              RefreshIndicator(
+                onRefresh: _refreshRecipes,
+                child: Column(
+                  children: [
+                    // Search bar for Saved Recipes
+                    _buildSearchBar(),
+                    Expanded(
+                      child: _buildRecipesGrid(isSaved: true),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            // Grid for "Saved" recipes with pull-to-refresh
-            RefreshIndicator(
-              onRefresh: _refreshRecipes,
-              child: Column(
-                children: [
-                  // Search bar for Saved Recipes
-                  _buildSearchBar(),
-                  Expanded(
-                    child: _buildRecipesGrid(isSaved: true),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -589,18 +599,18 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 behavior: HitTestBehavior.translucent,
                 onTap: _showProfilePhotoOverlay,
                 child: CircleAvatar(
-                  radius: 44,
-                  backgroundImage: userPhotoURL != null 
-                      ? NetworkImage(userPhotoURL)
-                      : null,
-                  child: userPhotoURL == null 
-                      ? Icon(
-                          Icons.person,
-                          size: 44,
+                radius: 44,
+                backgroundImage: userPhotoURL != null 
+                    ? NetworkImage(userPhotoURL)
+                    : null,
+                child: userPhotoURL == null 
+                    ? Icon(
+                        Icons.person,
+                        size: 44,
                           color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
-                        )
-                      : null,
-                ),
+                      )
+                    : null,
+              ),
               ),
               // Loading overlay
               if (_isUpdatingProfileImage)
@@ -625,15 +635,15 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                   duration: const Duration(milliseconds: 150),
                   child: IgnorePointer(
                     ignoring: !_showProfileOverlay || _isUpdatingProfileImage,
-                    child: GestureDetector(
-                      onTap: _pickProfileImage,
-                      child: Container(
-                        decoration: BoxDecoration(
+                child: GestureDetector(
+                  onTap: _pickProfileImage,
+                  child: Container(
+                    decoration: BoxDecoration(
                           color: Colors.black.withAlpha(120),
-                          shape: BoxShape.circle,
-                        ),
+                      shape: BoxShape.circle,
+                    ),
                         child: const Center(
-                          child: Icon(
+                    child: Icon(
                             Icons.edit,
                             color: Colors.white,
                             size: 24,
@@ -662,21 +672,43 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                           textAlign: TextAlign.left,
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
-                            fontSize: 19,
+                            fontSize: 18,
                           ),
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.zero,
+                          decoration: InputDecoration(
+                            isDense: true,
+                            contentPadding: const EdgeInsets.only(bottom: 2),
+                            border: const UnderlineInputBorder(
+                              borderSide: BorderSide(width: 1, color: Colors.grey),
+                            ),
+                            enabledBorder: const UnderlineInputBorder(
+                              borderSide: BorderSide(width: 1, color: Colors.grey),
+                            ),
+                            focusedBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(width: 2, color: Theme.of(context).colorScheme.primary),
+                            ),
+                            hintText: 'Enter your name',
+                            hintStyle: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+                            ),
                           ),
+                          onSubmitted: (_) => _saveName(),
+                          onEditingComplete: _saveName,
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.check),
+                        icon: const Icon(Icons.check, size: 18),
+                        padding: const EdgeInsets.all(4),
+                        constraints: const BoxConstraints(),
                         onPressed: _saveName,
                         color: Theme.of(context).colorScheme.primary,
+                        tooltip: 'Save',
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close),
+                        icon: const Icon(Icons.close, size: 18),
+                        padding: const EdgeInsets.all(4),
+                        constraints: const BoxConstraints(),
                         onPressed: () {
                           setState(() {
                             _isEditingName = false;
@@ -684,6 +716,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                           });
                         },
                         color: Theme.of(context).colorScheme.error,
+                        tooltip: 'Cancel',
                       ),
                     ],
                   ),
@@ -702,6 +735,8 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                       ),
                       IconButton(
                         icon: const Icon(Icons.edit, size: 16),
+                        padding: const EdgeInsets.all(4),
+                        constraints: const BoxConstraints(),
                         onPressed: () {
                           setState(() {
                             _isEditingName = true;
@@ -711,6 +746,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                           });
                         },
                         color: Theme.of(context).colorScheme.primary,
+                        tooltip: 'Edit name',
                       ),
                     ],
                   ),
@@ -769,6 +805,9 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
           filled: true,
           fillColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
           contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+          ),
           hintText: 'Search',
         ),
       ),

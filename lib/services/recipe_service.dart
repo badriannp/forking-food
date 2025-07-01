@@ -252,6 +252,39 @@ class RecipeService {
           
           // Get the actual recipe documents
           recipes = await _getRecipesByIds(topRecipeIds);
+          
+          // Update recipes with today's fork-ins count and maintain correct order
+          Map<String, Recipe> recipeMap = {};
+          for (Recipe recipe in recipes) {
+            recipeMap[recipe.id] = recipe;
+          }
+          
+          // Rebuild recipes list in the correct order
+          recipes = topRecipeIds.map((recipeId) {
+            final recipe = recipeMap[recipeId];
+            if (recipe != null) {
+              final todayLikes = likes[recipeId] as int? ?? 0;
+              return Recipe(
+                id: recipe.id,
+                title: recipe.title,
+                imageUrl: recipe.imageUrl,
+                description: recipe.description,
+                ingredients: recipe.ingredients,
+                instructions: recipe.instructions,
+                totalEstimatedTime: recipe.totalEstimatedTime,
+                tags: recipe.tags,
+                creatorId: recipe.creatorId,
+                creatorName: recipe.creatorName,
+                creatorPhotoURL: recipe.creatorPhotoURL,
+                createdAt: recipe.createdAt,
+                forkInCount: todayLikes, // Use today's likes instead of total
+                forkOutCount: recipe.forkOutCount,
+                forkingoodCount: recipe.forkingoodCount,
+                dietaryCriteria: recipe.dietaryCriteria,
+              );
+            }
+            return recipe!;
+          }).toList();
         }
       }
       

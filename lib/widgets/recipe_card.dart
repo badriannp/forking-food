@@ -34,7 +34,7 @@ class RecipeCard extends StatelessWidget {
       elevation: 12,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24),
       ),
       child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
