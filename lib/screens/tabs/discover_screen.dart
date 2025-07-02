@@ -487,32 +487,38 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
     }
 
     if (recommendations.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.recommend,
-              size: 80,
-              color: Theme.of(context).colorScheme.primary,
+      return SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.recommend,
+                  size: 80,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'No recommendations yet',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Start swiping to get personalized recommendations',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-            Text(
-              'No recommendations yet',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Start swiping to get personalized recommendations',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+          ),
         ),
       );
     }
