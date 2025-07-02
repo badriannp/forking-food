@@ -4,6 +4,8 @@ import 'package:forking/models/recipe.dart';
 import 'package:forking/widgets/recipe_card.dart';
 import 'package:forking/services/recipe_service.dart';
 import 'package:forking/services/auth_service.dart';
+import 'package:forking/services/recipe_event_bus.dart';
+import 'dart:async';
 
 class DiscoverScreen extends StatefulWidget {
   const DiscoverScreen({super.key});
@@ -17,6 +19,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
   final AuthService _authService = AuthService();
   
   late TabController _tabController;
+  StreamSubscription? _homeSwipeSubscription;
   
   // Yesterday's favorites
   List<Recipe> yesterdayFavorites = [];
@@ -32,11 +35,17 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
     _tabController = TabController(length: 2, vsync: this);
     _loadYesterdayFavorites();
     _loadRecommendations();
+    
+    // Listen to swipe events from home screen
+    _homeSwipeSubscription = RecipeEventBus.homeSwipeStream.listen((recipeId) {
+      _removeRecipeFromRecommendations(recipeId);
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _homeSwipeSubscription?.cancel();
     super.dispose();
   }
 
@@ -89,6 +98,94 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
         isLoadingRecommendations = false;
       });
     }
+  }
+
+  /// when a recipe is swiped in home, refresh the list
+  void _removeRecipeFromRecommendations(String recipeId) {
+    _loadRecommendations();
+  }
+
+  /// Build action button for overlay
+  Widget _buildActionButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          color: color.withAlpha(150),
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Icon(
+          icon,
+          color: Colors.white,
+          size: 24,
+        ),
+      ),
+    );
+  }
+
+  /// Handle fork-in action (save recipe)
+  void _handleForkIn(Recipe recipe) {
+    // Save swipe in Firebase
+    final String? userId = _authService.userId;
+    if (userId != null) {
+      _recipeService.saveSwipe(
+        userId: userId,
+        recipeId: recipe.id,
+        direction: SwipeDirection.right,
+      );
+    }
+    
+    // Remove from local list
+    _removeRecipeFromRecommendations(recipe.id);
+    
+    // Emit event for home screen
+    RecipeEventBus.emitDiscoverSwipe(recipe.id);
+    
+    // Close overlay
+    Navigator.of(context).pop();
+    
+    // Show snackbar
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${recipe.title} saved!'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  /// Handle fork-out action (skip recipe)
+  void _handleForkOut(Recipe recipe) {
+    // Save swipe in Firebase
+    final String? userId = _authService.userId;
+    if (userId != null) {
+      _recipeService.saveSwipe(
+        userId: userId,
+        recipeId: recipe.id,
+        direction: SwipeDirection.left,
+      );
+    }
+    
+    // Remove from local list
+    _removeRecipeFromRecommendations(recipe.id);
+    
+    // Emit event for home screen
+    RecipeEventBus.emitDiscoverSwipe(recipe.id);
+    
+    // Close overlay
+    Navigator.of(context).pop();
   }
 
   @override
@@ -452,24 +549,33 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                   ),
                 ),
               ),
+              // Action buttons
+              Positioned(
+                bottom: 300,
+                right: 15,
+                child: _buildActionButton(
+                  icon: Icons.delete_outline,
+                  color: Colors.red,
+                  onTap: () => _handleForkOut(recipe),
+                ),
+              ),
+              Positioned(
+                bottom: 420,
+                right: 15,
+                child: _buildActionButton(
+                  icon: Icons.restaurant,
+                  color: Colors.green,
+                  onTap: () => _handleForkIn(recipe),
+                ),
+              ),
               // Close button
               Positioned(
                 top: 12,
                 right: 12,
-                child: GestureDetector(
+                child: _buildActionButton(
+                  icon: Icons.close,
+                  color: Colors.grey,
                   onTap: () => Navigator.of(context).pop(),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withAlpha(128),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
                 ),
               ),
             ],

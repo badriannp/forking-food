@@ -7,6 +7,8 @@ import 'package:forking/widgets/recipe_card.dart';
 import 'package:forking/services/recipe_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:forking/services/auth_service.dart';
+import 'package:forking/services/recipe_event_bus.dart';
+import 'dart:async';
 
 typedef CardBuilder = Widget? Function(BuildContext context, int index, int? realIndex);
 
@@ -21,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final CardSwiperController controller = CardSwiperController();
   final RecipeService _recipeService = RecipeService();
   final AuthService _authService = AuthService();
+  StreamSubscription? _discoverSwipeSubscription;
   
   // Recipe state
   List<Recipe> recipes = [];
@@ -39,7 +42,6 @@ class _HomeScreenState extends State<HomeScreen> {
   List<String> availableDietaryCriteria = [];
   bool isLoadingDietaryCriteria = false;
 
-  // Recipes to show (no more client-side filtering)
   List<Recipe> get recipesToShow => recipes;
 
   @override
@@ -47,6 +49,11 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _loadInitialRecipes();
     _loadDietaryCriteria();
+    
+    // Listen to swipe events from discover screen
+    _discoverSwipeSubscription = RecipeEventBus.discoverSwipeStream.listen((recipeId) {
+      _removeRecipeFromHome(recipeId);
+    });
   }
 
   /// Load initial recipes from Firebase
@@ -95,14 +102,13 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      // For now, use a placeholder user ID - in real app, get from AuthService
       final String? userId = _authService.userId;
       if (userId == null) return;
       
       RecipePaginationResult result = await _recipeService.getRecipesForFeed(
         userId: userId,
         lastDocument: lastDocument,
-        limit: 20,
+        limit: 3,
         dietaryCriteria: selectedDietaryCriteria.isNotEmpty ? selectedDietaryCriteria.toList() : null,
         minTime: minTime.inMinutes != -1 ? minTime : null,
         maxTime: maxTime.inMinutes != -1 ? maxTime : null,
@@ -142,13 +148,12 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      // For now, use a placeholder user ID - in real app, get from AuthService
       final String? userId = _authService.userId;
       if (userId == null) return;
       
       RecipePaginationResult result = await _recipeService.getRecipesForFeed(
         userId: userId,
-        limit: 20,
+        limit: 3,
         dietaryCriteria: selectedDietaryCriteria.isNotEmpty ? selectedDietaryCriteria.toList() : null,
         minTime: minTime.inMinutes != -1 ? minTime : null,
         maxTime: maxTime.inMinutes != -1 ? maxTime : null,
@@ -195,7 +200,15 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     controller.dispose();
+    _discoverSwipeSubscription?.cancel();
     super.dispose();
+  }
+
+  /// Remove recipe from home when it's swiped in discover
+  void _removeRecipeFromHome(String recipeId) {
+    setState(() {
+      recipes.removeWhere((recipe) => recipe.id == recipeId);
+    });
   }
 
   @override
@@ -408,17 +421,17 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     });
     
-    // Check if we need to load more recipes
-    _checkAndLoadMore(actualCurrentIndex);
-    
     // Save swipe action to Firebase
     if (actualCurrentIndex < recipesToShow.length) {
-      final recipe = recipesToShow[actualCurrentIndex];
+      final recipe = recipesToShow[previousIndex];
       final swipeDirection = direction == CardSwiperDirection.left 
           ? SwipeDirection.left 
           : SwipeDirection.right;
       
-      // For now, use a placeholder user ID - in real app, get from AuthService
+      // Emit event for discover screen
+      RecipeEventBus.emitHomeSwipe(recipe.id);
+
+      // Save swipe action to Firebase
       final String? userId = _authService.userId;
       if (userId == null) return false;
       
@@ -428,6 +441,9 @@ class _HomeScreenState extends State<HomeScreen> {
         direction: swipeDirection,
       );
     }
+
+    // Check if we need to load more recipes
+    _checkAndLoadMore(actualCurrentIndex);
     
     return true;
   }

@@ -445,7 +445,7 @@ class RecipeService {
   Future<RecipePaginationResult> getRecipesForFeed({
     required String userId,
     DocumentSnapshot? lastDocument,
-    int limit = 20,
+    int limit = 3,
     List<String>? dietaryCriteria,
     Duration? minTime,
     Duration? maxTime,
