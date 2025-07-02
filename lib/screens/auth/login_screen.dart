@@ -55,15 +55,15 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = false;
+      });
       return;
     }
     final authService = AuthService();
     try {
       await authService.signIn(_emailController.text, _passwordController.text);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login successful!')),
-      );
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const MainScreen()),
         (route) => false,
@@ -81,10 +81,11 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
