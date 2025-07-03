@@ -22,16 +22,16 @@ class Recipe {
   final String imageUrl;
   final String description;
   final List<String> ingredients;
-  final List<InstructionStep> instructions; // Changed from List<String>
-  final Duration totalEstimatedTime;       // New field
-  final List<String> tags;                 // New field: e.g., ['pasta', 'vegetarian', 'quick']
+  final List<InstructionStep> instructions;
+  final Duration totalEstimatedTime;
+  final List<String> tags;
   final String creatorId;
-  final String? creatorName; // Made nullable for centralized user data
-  final String? creatorPhotoURL;           // Chef's avatar URL
+  final String? creatorName;
+  final String? creatorPhotoURL;
   final DateTime createdAt;
-  final int forkInCount;    // Likes/Fork in count
-  final int forkOutCount;   // Dislikes/Fork out count
-  final int forkingoodCount; // Super likes (future feature)
+  final int forkInCount;
+  final int forkOutCount;
+  final int forkingoodCount;
   final List<String> dietaryCriteria;
 
   Recipe({
@@ -44,7 +44,7 @@ class Recipe {
     required this.totalEstimatedTime,
     required this.tags,
     required this.creatorId,
-    this.creatorName, // Made optional
+    this.creatorName,
     this.creatorPhotoURL,
     required this.createdAt,
     this.forkInCount = 0,
