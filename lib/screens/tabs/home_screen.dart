@@ -292,6 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
       recipes.removeWhere((recipe) => recipe.id == recipeId);
       availableRecipes.removeWhere((recipe) => recipe.id == recipeId);
       _maintainPoolSize();
+      _promoteRecipeFromPool();
     });
   }
 
