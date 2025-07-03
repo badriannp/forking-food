@@ -22,9 +22,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
   late TabController _tabController;
   StreamSubscription? _homeSwipeSubscription;
   
-  // Yesterday's favorites
-  List<Recipe> yesterdayFavorites = [];
-  bool isLoadingYesterday = true;
+  // Today's favorites
+  List<Recipe> todayFavorites = [];
+  bool isLoadingToday = true;
   
   // Personalized recommendations
   List<Recipe> recommendations = [];
@@ -34,7 +34,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadYesterdayFavorites();
+    _loadTodayFavorites();
     _loadRecommendations();
     
     // Listen to swipe events from home screen
@@ -51,9 +51,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
   }
 
   /// Load today's leaderboard
-  Future<void> _loadYesterdayFavorites() async {
+  Future<void> _loadTodayFavorites() async {
     setState(() {
-      isLoadingYesterday = true;
+      isLoadingToday = true;
     });
 
     try {
@@ -64,12 +64,12 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
       final recipes = await _recipeService.getTodayLeaderboard(limit: 3);
 
       setState(() {
-        yesterdayFavorites = recipes;
-        isLoadingYesterday = false;
+        todayFavorites = recipes;
+        isLoadingToday = false;
       });
     } catch (e) {
       setState(() {
-        isLoadingYesterday = false;
+        isLoadingToday = false;
       });
     }
   }
@@ -292,8 +292,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
               controller: _tabController,
               children: [
                 RefreshIndicator(
-                  onRefresh: _loadYesterdayFavorites,
-                  child: _buildYesterdayFavoritesTab(),
+                  onRefresh: _loadTodayFavorites,
+                  child: _buildTodayFavoritesTab(),
                 ),
                 RefreshIndicator(
                   onRefresh: _loadRecommendations,
@@ -307,8 +307,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
     );
   }
 
-  Widget _buildYesterdayFavoritesTab() {
-    if (isLoadingYesterday) {
+  Widget _buildTodayFavoritesTab() {
+    if (isLoadingToday) {
       return const Center(
         child: CircularProgressIndicator(),
       );
@@ -321,8 +321,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
         final rank = index + 1;
         
         // Check if we have a recipe for this position
-        if (index < yesterdayFavorites.length) {
-          final recipe = yesterdayFavorites[index];
+        if (index < todayFavorites.length) {
+          final recipe = todayFavorites[index];
           return Container(
             margin: const EdgeInsets.only(bottom: 16),
             child: _buildLeaderboardCard(recipe, rank),
