@@ -396,8 +396,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
             Container(
               width: 120,
               height: 120,
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.only(
+              decoration: const BoxDecoration(
+                borderRadius: BorderRadius.only(
                   topRight: Radius.circular(16),
                   bottomRight: Radius.circular(16),
                 ),
@@ -422,7 +422,6 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Titlu rețetă
                     Text(
                       recipe.title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -433,7 +432,6 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 8),
-                    // Avatar + nume creator
                     Row(
                       children: [
                         if (recipe.creatorPhotoURL != null && recipe.creatorPhotoURL!.isNotEmpty)
@@ -758,7 +756,6 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                     ),
                   ),
                 ),
-                // Timp în dreapta sus
                 Positioned(
                   top: 8,
                   right: 8,

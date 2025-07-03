@@ -26,18 +26,18 @@ class _HomeScreenState extends State<HomeScreen> {
   StreamSubscription? _discoverSwipeSubscription;
   
   // Recipe state
-  List<Recipe> recipes = []; // Rețetele din swiper
-  List<Recipe> availableRecipes = []; // Pool-ul de rețete disponibile
-  DocumentSnapshot? lastDocument; // Keep for backward compatibility
-  DateTime? lastTimestamp; // New timestamp-based pagination
+  List<Recipe> recipes = [];
+  List<Recipe> availableRecipes = [];
+  DocumentSnapshot? lastDocument;
+  DateTime? lastTimestamp;
   bool hasMore = true;
   bool isLoading = false;
   bool isInitialLoading = true;
   bool hasReachedEnd = false; // Track when we've reached the end
 
   // Pool management constants
-  static const int _minPoolSize = 5; // Câte rețete să fie mereu în pool
-  static const int _swiperSize = 3; // Câte rețete în swiper
+  static const int _minPoolSize = 5;
+  static const int _swiperSize = 3;
 
   // Filter state
   Set<String> selectedDietaryCriteria = {};
@@ -91,14 +91,13 @@ class _HomeScreenState extends State<HomeScreen> {
       
       if (mounted) {
         setState(() {
-          availableRecipes = result.recipes; // Toate rețetele valide merg în pool
+          availableRecipes = result.recipes;
           lastDocument = result.lastDocument;
           lastTimestamp = result.lastTimestamp; // Save timestamp for pagination
           hasMore = result.hasMore;
           isInitialLoading = false;
         });
         
-        // Populează swiper-ul doar dacă este gol
         if (recipes.isEmpty) {
           _populateSwiper();
         }
@@ -112,10 +111,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// Populează swiper-ul cu rețete din pool-ul disponibil
   void _populateSwiper() {
     if (availableRecipes.isEmpty) {
-      // Verifică dacă swiper-ul este gol pentru a seta hasReachedEnd
       if (recipes.isEmpty && !hasMore) {
         setState(() {
           hasReachedEnd = true;
@@ -124,16 +121,13 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     
-    // Ia primele rețete din pool pentru swiper
     List<Recipe> recipesForSwiper = availableRecipes.take(_swiperSize).toList();
     
     setState(() {
       recipes = recipesForSwiper;
-      // Elimină rețetele luate din pool
       availableRecipes = availableRecipes.skip(_swiperSize).toList();
     });
     
-    // If we have recipes in swiper, we're not at the end
     if (recipes.isNotEmpty) {
       setState(() {
         hasReachedEnd = false;
@@ -141,7 +135,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// Load more recipes when user is near the end
   Future<void> _loadMoreRecipes() async {
     if (isLoading || !hasMore) {
       return;
@@ -159,7 +152,7 @@ class _HomeScreenState extends State<HomeScreen> {
         userId: userId,
         lastDocument: lastDocument,
         lastTimestamp: lastTimestamp, // Use timestamp-based pagination
-        limit: 9, // Mărește batch size pentru a avea mai multe rețete în pool
+        limit: 3,
         dietaryCriteria: selectedDietaryCriteria.isNotEmpty ? selectedDietaryCriteria.toList() : null,
         minTime: minTime.inMinutes != -1 ? minTime : null,
         maxTime: maxTime.inMinutes != -1 ? maxTime : null,
@@ -214,8 +207,8 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       isLoading = true;
       isInitialLoading = true;
-      recipes.clear(); // ❌ TOATE rețetele din swiper sunt ȘTERSE
-      availableRecipes.clear(); // ❌ TOATE rețetele din pool sunt ȘTERSE
+      recipes.clear();
+      availableRecipes.clear();
       lastDocument = null;
       lastTimestamp = null; // Reset timestamp pagination
       hasMore = true;
@@ -236,7 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (mounted) {
         setState(() {
-          availableRecipes = result.recipes; // ✅ NOI rețete în pool
+          availableRecipes = result.recipes;
           lastDocument = result.lastDocument;
           lastTimestamp = result.lastTimestamp; // Save timestamp for pagination
           hasMore = result.hasMore;
@@ -244,7 +237,7 @@ class _HomeScreenState extends State<HomeScreen> {
           isInitialLoading = false;
         });
         
-        _populateSwiper(); // ✅ Populează swiper-ul cu noile rețete
+        _populateSwiper();
       }
     } catch (e) {
       if (mounted) {
@@ -391,7 +384,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       top: 80,
                                       left: 20,
                                       child: Transform.rotate(
-                                        angle: -0.785/2, // -45/2 grade în radiani
+                                        angle: -0.785/2,
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                           decoration: BoxDecoration(
@@ -423,7 +416,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       top: 80,
                                       right: 20,
                                       child: Transform.rotate(
-                                        angle: 0.785/2, // 45 grade în radiani
+                                        angle: 0.785/2,
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                           decoration: BoxDecoration(
@@ -537,7 +530,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Check if we've reached the end of swiper
     if (currentIndex == null) {
-      // Verifică dacă mai sunt rețete în pool sau în Firebase
       if (availableRecipes.isEmpty && !hasMore) {
         setState(() {
           hasReachedEnd = true;
@@ -550,19 +542,15 @@ class _HomeScreenState extends State<HomeScreen> {
       return true;
     }
 
-    // Promovează o rețetă din pool în swiper dacă e nevoie
     _promoteRecipeFromPool();
 
-    // Check if we need to load more recipes
     _maintainPoolSize();
     
     return true;
   }
 
-  /// Promovează o rețetă din pool-ul disponibil în swiper
   void _promoteRecipeFromPool() {
     if (availableRecipes.isEmpty) {
-      // Verifică dacă swiper-ul este gol pentru a seta hasReachedEnd
       if (recipes.isEmpty && !hasMore) {
         setState(() {
           hasReachedEnd = true;
@@ -571,15 +559,13 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    // Ia prima rețetă din pool și o adaugă în swiper
     Recipe promotedRecipe = availableRecipes.first;
     
     setState(() {
       recipes.add(promotedRecipe);
-      availableRecipes.removeAt(0); // Elimină din pool
+      availableRecipes.removeAt(0);
     });
     
-    // Verifică dacă trebuie să încarci mai multe rețete pentru a menține pool-ul
     _maintainPoolSize();
   }
 
