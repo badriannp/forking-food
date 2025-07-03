@@ -12,33 +12,32 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  // Folosim PageStorage pentru a păstra indexul selectat
-  static const String _storageKey = 'main_screen_selected_index';
-  
-  // Inițializăm cu valoarea salvată sau 1 (Home tab) dacă nu există
-  int get _selectedIndex => PageStorage.of(context).readState(context, identifier: _storageKey) ?? 1;
+  static const _storageKey = 'main_screen_selected_index';
+  int _selectedIndex = 1;
 
-  late final List<Widget> _screens;
+  final List<Widget> _screens = const [
+    DiscoverScreen(),
+    HomeScreen(),
+    ProfileScreen(),
+  ];
 
   @override
   void initState() {
     super.initState();
-    _screens = [
-      const DiscoverScreen(),
-    const HomeScreen(),
-    const ProfileScreen(),
-  ];
-  }
-
-  void _updateSelectedIndex(int index) {
-    // Salvăm indexul în PageStorage
-    PageStorage.of(context).writeState(context, index, identifier: _storageKey);
-    setState(() {});
+    // restore saved index
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final storedIndex = PageStorage.of(context)
+              .readState(context, identifier: _storageKey) as int?;
+      if (storedIndex != null) {
+        setState(() => _selectedIndex = storedIndex);
+      }
+    });
   }
 
   void _onItemTapped(int index) {
     FocusScope.of(context).unfocus();
-    _updateSelectedIndex(index);
+    PageStorage.of(context).writeState(context, index, identifier: _storageKey);
+    setState(() => _selectedIndex = index);
   }
 
   @override
@@ -50,12 +49,12 @@ class _MainScreenState extends State<MainScreen> {
         children: _screens,
       ),
       bottomNavigationBar: NavigationBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onItemTapped,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
         indicatorColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.explore_outlined),
@@ -76,4 +75,4 @@ class _MainScreenState extends State<MainScreen> {
       ),
     );
   }
-} 
+}

@@ -90,7 +90,6 @@ class AppEntryPoint extends StatelessWidget {
     // Initialize Firebase
     await Firebase.initializeApp();
     
-    // Add a delay for splash screen visibility
     await Future.delayed(const Duration(milliseconds: 2000));
   }
 
