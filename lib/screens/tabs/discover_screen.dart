@@ -274,6 +274,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
             unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withAlpha(150),
             indicatorColor: Theme.of(context).colorScheme.primary,
             splashFactory: NoSplash.splashFactory,
+            dividerHeight: 0.125,
+            dividerColor: Theme.of(context).colorScheme.onSurface.withAlpha(100),
+            isScrollable: false,
+            indicatorAnimation: TabIndicatorAnimation.elastic,
             tabs: const [
               Tab(text: "Today's Top"),
               Tab(text: 'ForkYou'),

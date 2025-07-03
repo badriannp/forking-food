@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:forking/models/recipe.dart';
 import 'package:forking/widgets/recipe_card.dart';
@@ -522,6 +523,10 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 SliverPersistentHeader(
                   delegate: _SliverAppBarDelegate(
                     TabBar(
+                      indicatorAnimation: TabIndicatorAnimation.elastic,
+                      dividerHeight: 0.125,
+                      dividerColor: Theme.of(context).colorScheme.onSurface.withAlpha(100),
+                      isScrollable: false,
                     controller: _tabController,
                       labelColor: Theme.of(context).colorScheme.primary,
                     unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withAlpha(150),
@@ -760,7 +765,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   Widget _buildSearchBar() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      height: 40,
+      height: 32,
       child: TextField(
         controller: _searchController,
         onChanged: (value) {
@@ -789,10 +794,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                   },
                 )
               : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
+          border: InputBorder.none,
           filled: true,
           fillColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
           contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),

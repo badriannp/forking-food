@@ -386,16 +386,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                     constraints: constraints,
                                   ),
                                   // FORK IN overlay (swipe dreapta)
-                                  if (percentThresholdX > 20)
+                                  if (percentThresholdX > 150)
                                     Positioned(
                                       top: 80,
                                       left: 20,
                                       child: Transform.rotate(
-                                        angle: -0.785, // -45 grade în radiani
+                                        angle: -0.785/2, // -45/2 grade în radiani
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                           decoration: BoxDecoration(
                                             border: Border.all(color: Colors.green, width: 2),
+                                            color: Colors.green.withAlpha(100),
                                             borderRadius: BorderRadius.circular(6),
                                           ),
                                           child: const Row(
@@ -417,16 +418,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                     ),
                                   // FORK OUT overlay (swipe stânga)
-                                  if (percentThresholdX < -20)
+                                  if (percentThresholdX < -150)
                                     Positioned(
                                       top: 80,
                                       right: 20,
                                       child: Transform.rotate(
-                                        angle: 0.785, // 45 grade în radiani
+                                        angle: 0.785/2, // 45 grade în radiani
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                           decoration: BoxDecoration(
                                             border: Border.all(color: Colors.red, width: 2),
+                                            color: Colors.red.withAlpha(100),
                                             borderRadius: BorderRadius.circular(6),
                                           ),
                                           child: const Row(
