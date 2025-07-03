@@ -26,12 +26,18 @@ class _HomeScreenState extends State<HomeScreen> {
   StreamSubscription? _discoverSwipeSubscription;
   
   // Recipe state
-  List<Recipe> recipes = [];
-  DocumentSnapshot? lastDocument;
+  List<Recipe> recipes = []; // Rețetele din swiper
+  List<Recipe> availableRecipes = []; // Pool-ul de rețete disponibile
+  DocumentSnapshot? lastDocument; // Keep for backward compatibility
+  DateTime? lastTimestamp; // New timestamp-based pagination
   bool hasMore = true;
   bool isLoading = false;
   bool isInitialLoading = true;
   bool hasReachedEnd = false; // Track when we've reached the end
+
+  // Pool management constants
+  static const int _minPoolSize = 5; // Câte rețete să fie mereu în pool
+  static const int _swiperSize = 3; // Câte rețete în swiper
 
   // Filter state
   Set<String> selectedDietaryCriteria = {};
@@ -63,6 +69,11 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       isInitialLoading = true;
       hasReachedEnd = false; // Reset when loading new recipes
+      recipes.clear(); // Clear existing recipes
+      availableRecipes.clear(); // Clear available pool
+      lastDocument = null; // Reset pagination
+      lastTimestamp = null; // Reset timestamp pagination
+      hasMore = true; // Reset hasMore
     });
 
     try {
@@ -76,13 +87,21 @@ class _HomeScreenState extends State<HomeScreen> {
         maxTime: maxTime.inMinutes == -1 ? null : maxTime,
       );
       
+
+      
       if (mounted) {
         setState(() {
-          recipes = result.recipes;
+          availableRecipes = result.recipes; // Toate rețetele valide merg în pool
           lastDocument = result.lastDocument;
+          lastTimestamp = result.lastTimestamp; // Save timestamp for pagination
           hasMore = result.hasMore;
           isInitialLoading = false;
         });
+        
+        // Populează swiper-ul doar dacă este gol
+        if (recipes.isEmpty) {
+          _populateSwiper();
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -93,9 +112,40 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  /// Populează swiper-ul cu rețete din pool-ul disponibil
+  void _populateSwiper() {
+    if (availableRecipes.isEmpty) {
+      // Verifică dacă swiper-ul este gol pentru a seta hasReachedEnd
+      if (recipes.isEmpty && !hasMore) {
+        setState(() {
+          hasReachedEnd = true;
+        });
+      }
+      return;
+    }
+    
+    // Ia primele rețete din pool pentru swiper
+    List<Recipe> recipesForSwiper = availableRecipes.take(_swiperSize).toList();
+    
+    setState(() {
+      recipes = recipesForSwiper;
+      // Elimină rețetele luate din pool
+      availableRecipes = availableRecipes.skip(_swiperSize).toList();
+    });
+    
+    // If we have recipes in swiper, we're not at the end
+    if (recipes.isNotEmpty) {
+      setState(() {
+        hasReachedEnd = false;
+      });
+    }
+  }
+
   /// Load more recipes when user is near the end
   Future<void> _loadMoreRecipes() async {
-    if (isLoading || !hasMore || lastDocument == null) return;
+    if (isLoading || !hasMore) {
+      return;
+    }
     
     setState(() {
       isLoading = true;
@@ -108,31 +158,53 @@ class _HomeScreenState extends State<HomeScreen> {
       RecipePaginationResult result = await _recipeService.getRecipesForFeed(
         userId: userId,
         lastDocument: lastDocument,
-        limit: 3,
+        lastTimestamp: lastTimestamp, // Use timestamp-based pagination
+        limit: 9, // Mărește batch size pentru a avea mai multe rețete în pool
         dietaryCriteria: selectedDietaryCriteria.isNotEmpty ? selectedDietaryCriteria.toList() : null,
         minTime: minTime.inMinutes != -1 ? minTime : null,
         maxTime: maxTime.inMinutes != -1 ? maxTime : null,
       );
 
-      setState(() {
-        recipes.addAll(result.recipes);
-        lastDocument = result.lastDocument;
-        hasMore = result.hasMore;
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          if (result.recipes.isNotEmpty) {
+            // Evită duplicatele în pool
+            Set<String> existingIds = availableRecipes.map((r) => r.id).toSet();
+            List<Recipe> newRecipes = result.recipes.where((r) => !existingIds.contains(r.id)).toList();
+            
+            availableRecipes.addAll(newRecipes); // Adaugă în pool
+            lastDocument = result.lastDocument;
+            lastTimestamp = result.lastTimestamp; // Save timestamp for pagination
+            hasMore = result.hasMore;
+          } else {
+            // No more recipes available
+            hasMore = false;
+            // Check if we should show "no more recipes" message
+            if (availableRecipes.isEmpty && recipes.isEmpty) {
+              hasReachedEnd = true;
+            }
+          }
+          isLoading = false;
+        });
+        
+        // Populează swiper-ul doar dacă este gol
+        if (recipes.isEmpty) {
+          _populateSwiper();
+        }
+      }
     } catch (e) {
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          // Don't set hasMore to false on error, try again later
+        });
+      }
     }
   }
 
-  /// Check if we need to load more recipes
-  void _checkAndLoadMore(int currentIndex) {
-    if (recipesToShow.isEmpty) return;
-    
-    // Load more when user is 3 cards away from the end
-    if (currentIndex >= recipesToShow.length - 3 && hasMore && !isLoading) {
+  /// Maintain pool size by loading more recipes if needed
+  void _maintainPoolSize() {
+    if (availableRecipes.length < _minPoolSize && hasMore && !isLoading) {
       _loadMoreRecipes();
     }
   }
@@ -142,9 +214,12 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       isLoading = true;
       isInitialLoading = true;
-      recipes.clear();
+      recipes.clear(); // ❌ TOATE rețetele din swiper sunt ȘTERSE
+      availableRecipes.clear(); // ❌ TOATE rețetele din pool sunt ȘTERSE
       lastDocument = null;
+      lastTimestamp = null; // Reset timestamp pagination
       hasMore = true;
+      hasReachedEnd = false;
     });
 
     try {
@@ -159,18 +234,25 @@ class _HomeScreenState extends State<HomeScreen> {
         maxTime: maxTime.inMinutes != -1 ? maxTime : null,
       );
 
-      setState(() {
-        recipes = result.recipes;
-        lastDocument = result.lastDocument;
-        hasMore = result.hasMore;
-        isLoading = false;
-        isInitialLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          availableRecipes = result.recipes; // ✅ NOI rețete în pool
+          lastDocument = result.lastDocument;
+          lastTimestamp = result.lastTimestamp; // Save timestamp for pagination
+          hasMore = result.hasMore;
+          isLoading = false;
+          isInitialLoading = false;
+        });
+        
+        _populateSwiper(); // ✅ Populează swiper-ul cu noile rețete
+      }
     } catch (e) {
-      setState(() {
-        isLoading = false;
-        isInitialLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          isInitialLoading = false;
+        });
+      }
     }
   }
 
@@ -208,6 +290,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void _removeRecipeFromHome(String recipeId) {
     setState(() {
       recipes.removeWhere((recipe) => recipe.id == recipeId);
+      availableRecipes.removeWhere((recipe) => recipe.id == recipeId);
+      _maintainPoolSize();
     });
   }
 
@@ -266,7 +350,7 @@ class _HomeScreenState extends State<HomeScreen> {
             height: constraints.maxHeight,
             child: recipesToShow.isEmpty || hasReachedEnd
                 ? RefreshIndicator(
-                    onRefresh: _loadInitialRecipes,
+                    onRefresh: _refreshRecipes,
                     child: SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       child: SizedBox(
@@ -411,18 +495,24 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  bool _onSwipe(int previousIndex, int? currentIndex, CardSwiperDirection direction) {
-    final actualCurrentIndex = currentIndex ?? 0;
-    
+  /// Refresh recipes - reset everything and start over
+  Future<void> _refreshRecipes() async {
     setState(() {
-      // Check if we've reached the end
-      if (currentIndex == null) {
-        hasReachedEnd = true;
-      }
+      hasReachedEnd = false;
+      hasMore = true;
+      lastDocument = null;
+      lastTimestamp = null; // Reset timestamp pagination
+      recipes.clear();
+      availableRecipes.clear();
     });
     
+    await _loadInitialRecipes();
+  }
+
+  bool _onSwipe(int previousIndex, int? currentIndex, CardSwiperDirection direction) {
+    
     // Save swipe action to Firebase
-    if (actualCurrentIndex < recipesToShow.length) {
+    if (previousIndex < recipesToShow.length) {
       final recipe = recipesToShow[previousIndex];
       final swipeDirection = direction == CardSwiperDirection.left 
           ? SwipeDirection.left 
@@ -442,10 +532,52 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
+    // Check if we've reached the end of swiper
+    if (currentIndex == null) {
+      // Verifică dacă mai sunt rețete în pool sau în Firebase
+      if (availableRecipes.isEmpty && !hasMore) {
+        setState(() {
+          hasReachedEnd = true;
+        });
+      } else if (availableRecipes.isNotEmpty) {
+        _promoteRecipeFromPool();
+      } else if (hasMore) {
+        _loadMoreRecipes();
+      }
+      return true;
+    }
+
+    // Promovează o rețetă din pool în swiper dacă e nevoie
+    _promoteRecipeFromPool();
+
     // Check if we need to load more recipes
-    _checkAndLoadMore(actualCurrentIndex);
+    _maintainPoolSize();
     
     return true;
+  }
+
+  /// Promovează o rețetă din pool-ul disponibil în swiper
+  void _promoteRecipeFromPool() {
+    if (availableRecipes.isEmpty) {
+      // Verifică dacă swiper-ul este gol pentru a seta hasReachedEnd
+      if (recipes.isEmpty && !hasMore) {
+        setState(() {
+          hasReachedEnd = true;
+        });
+      }
+      return;
+    }
+
+    // Ia prima rețetă din pool și o adaugă în swiper
+    Recipe promotedRecipe = availableRecipes.first;
+    
+    setState(() {
+      recipes.add(promotedRecipe);
+      availableRecipes.removeAt(0); // Elimină din pool
+    });
+    
+    // Verifică dacă trebuie să încarci mai multe rețete pentru a menține pool-ul
+    _maintainPoolSize();
   }
 
   void _showFilterModal() {
@@ -515,7 +647,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           maxTime = const Duration(minutes: -1);
                         });
                         setModalState(() {});
-                        await _reloadRecipesWithFilters();
                       },
                       child: const Text('Clear All'),
                     ),

@@ -6,6 +6,7 @@ import 'package:forking/services/recipe_service.dart';
 import 'package:forking/services/auth_service.dart';
 import 'package:forking/services/recipe_event_bus.dart';
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DiscoverScreen extends StatefulWidget {
   const DiscoverScreen({super.key});
@@ -110,26 +111,43 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
+    bool isDisabled = false,
+    bool isSelected = false,
+    IconData? selectedIcon,
   }) {
+    final bool isEnabled = !isDisabled;
+    final Color buttonColor = isDisabled 
+        ? color.withAlpha(80) 
+        : isSelected 
+            ? color 
+            : color.withAlpha(150);
+    
+    final IconData displayIcon = isSelected && selectedIcon != null 
+        ? selectedIcon 
+        : icon;
+    
     return GestureDetector(
-      onTap: onTap,
+      onTap: isEnabled ? onTap : null,
       child: Container(
         width: 60,
         height: 60,
         decoration: BoxDecoration(
-          color: color.withAlpha(150),
+          color: buttonColor,
           shape: BoxShape.circle,
+          border: isSelected 
+              ? Border.all(color: Colors.white, width: 2)
+              : null,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withOpacity(isDisabled ? 0.1 : 0.3),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Icon(
-          icon,
-          color: Colors.white,
+          displayIcon,
+          color: isDisabled ? Colors.white.withAlpha(120) : Colors.white,
           size: 24,
         ),
       ),
@@ -137,11 +155,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
   }
 
   /// Handle fork-in action (save recipe)
-  void _handleForkIn(Recipe recipe) {
+  void _handleForkIn(Recipe recipe) async {
     // Save swipe in Firebase
     final String? userId = _authService.userId;
     if (userId != null) {
-      _recipeService.saveSwipe(
+      await _recipeService.saveSwipe(
         userId: userId,
         recipeId: recipe.id,
         direction: SwipeDirection.right,
@@ -167,11 +185,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
   }
 
   /// Handle fork-out action (skip recipe)
-  void _handleForkOut(Recipe recipe) {
+  void _handleForkOut(Recipe recipe) async {
     // Save swipe in Firebase
     final String? userId = _authService.userId;
     if (userId != null) {
-      _recipeService.saveSwipe(
+      await _recipeService.saveSwipe(
         userId: userId,
         recipeId: recipe.id,
         direction: SwipeDirection.left,
@@ -186,6 +204,33 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
     
     // Close overlay
     Navigator.of(context).pop();
+  }
+
+  /// Check if a recipe has been swiped and get the swipe direction
+  Future<Map<String, dynamic>> _getSwipeState(String recipeId) async {
+    try {
+      final String? userId = _authService.userId;
+      if (userId == null) return {'isSwiped': false, 'direction': null};
+      
+      final swipesDoc = await FirebaseFirestore.instance
+          .collection('swipes')
+          .doc(userId)
+          .get();
+      
+      if (!swipesDoc.exists || swipesDoc.data() == null || swipesDoc.data()!['swipedRecipes'] == null) {
+        return {'isSwiped': false, 'direction': null};
+      }
+      
+      final swipedRecipes = swipesDoc.data()!['swipedRecipes'] as Map<String, dynamic>;
+      final swipeDirection = swipedRecipes[recipeId] as String?;
+      
+      return {
+        'isSwiped': swipeDirection != null,
+        'direction': swipeDirection,
+      };
+    } catch (e) {
+      return {'isSwiped': false, 'direction': null};
+    }
   }
 
   @override
@@ -497,7 +542,14 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
     }
   }
 
-  void _showRecipeCardOverlay(BuildContext context, Recipe recipe) {
+  void _showRecipeCardOverlay(BuildContext context, Recipe recipe) async {
+    // Get swipe state for this recipe
+    final swipeState = await _getSwipeState(recipe.id);
+    final bool isSwiped = swipeState['isSwiped'] as bool;
+    final String? swipeDirection = swipeState['direction'] as String?;
+    
+    if (!context.mounted) return;
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -557,6 +609,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                   icon: Icons.delete_outline,
                   color: Colors.red,
                   onTap: () => _handleForkOut(recipe),
+                  isDisabled: isSwiped,
+                  isSelected: isSwiped && swipeDirection == 'left',
+                  selectedIcon: Icons.check,
                 ),
               ),
               Positioned(
@@ -566,6 +621,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                   icon: Icons.restaurant,
                   color: Colors.green,
                   onTap: () => _handleForkIn(recipe),
+                  isDisabled: isSwiped,
+                  isSelected: isSwiped && swipeDirection == 'right',
+                  selectedIcon: Icons.check,
                 ),
               ),
               // Close button

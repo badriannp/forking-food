@@ -288,7 +288,7 @@ class RecipeService {
       
       // Load creator data for all recipes
       recipes = await _loadCreatorDataForRecipes(recipes);
-      
+      await cleanupOldDailyLikes();
       return recipes;
     } catch (e) {
       // Error getting today leaderboard
@@ -442,7 +442,160 @@ class RecipeService {
     }
   }
 
+  /// Get recipes for feed (original method - delegates to precise implementation)
   Future<RecipePaginationResult> getRecipesForFeed({
+    required String userId,
+    DocumentSnapshot? lastDocument,
+    DateTime? lastTimestamp,
+    int limit = 3,
+    List<String>? dietaryCriteria,
+    Duration? minTime,
+    Duration? maxTime,
+  }) async {
+    return getRecipesForFeedPrecise(
+      userId: userId,
+      lastDocument: lastDocument,
+      lastTimestamp: lastTimestamp,
+      limit: limit,
+      dietaryCriteria: dietaryCriteria,
+      minTime: minTime,
+      maxTime: maxTime,
+    );
+  }
+
+  /// Get recipes for feed with optimized queries and proper indexing
+  Future<RecipePaginationResult> getRecipesForFeedPrecise({
+    required String userId,
+    DocumentSnapshot? lastDocument,
+    DateTime? lastTimestamp,
+    int limit = 3,
+    List<String>? dietaryCriteria,
+    Duration? minTime,
+    Duration? maxTime,
+  }) async {
+    try {
+      // 1. Get user's swiped recipes (cached for efficiency)
+      final swipesDoc = await _firestore.collection('swipes').doc(userId).get();
+      Set<String> swipedIds = {};
+      if (swipesDoc.exists && swipesDoc.data() != null && swipesDoc.data()!['swipedRecipes'] != null) {
+        swipedIds = Set<String>.from((swipesDoc.data()!['swipedRecipes'] as Map).keys);
+      }
+
+      // 2. Build optimized query based on available filters
+      Query query = _firestore.collection('recipes')
+          .where('creatorId', isNotEqualTo: userId);
+
+      // Apply time filters if specified
+      if (minTime != null && maxTime != null && minTime.inMinutes != -1 && maxTime.inMinutes != -1) {
+        query = query.where('totalEstimatedTime', isGreaterThanOrEqualTo: minTime.inSeconds)
+                     .where('totalEstimatedTime', isLessThanOrEqualTo: maxTime.inSeconds);
+      } else if (minTime != null && minTime.inMinutes != -1) {
+        query = query.where('totalEstimatedTime', isGreaterThanOrEqualTo: minTime.inSeconds);
+      } else if (maxTime != null && maxTime.inMinutes != -1) {
+        query = query.where('totalEstimatedTime', isLessThanOrEqualTo: maxTime.inSeconds);
+      }
+
+      // Apply dietary criteria filter if specified
+      if (dietaryCriteria != null && dietaryCriteria.isNotEmpty) {
+        // Use array-contains-any for better performance
+        query = query.where('dietaryCriteria', arrayContainsAny: dietaryCriteria);
+      }
+
+      // Order by creation date for consistent pagination
+      query = query.orderBy('createdAt', descending: true);
+
+      // 3. Handle pagination using timestamp (more reliable than document)
+      if (lastTimestamp != null) {
+        query = query.where('createdAt', isLessThan: lastTimestamp);
+      } else if (lastDocument != null) {
+        // Fallback to document-based pagination for backward compatibility
+        query = query.startAfterDocument(lastDocument);
+      }
+
+      // 4. Fetch with larger batch size to account for filtering
+      int batchSize = limit * 3; // Increased batch size for better filtering
+      QuerySnapshot snapshot = await query.limit(batchSize).get();
+
+      if (snapshot.docs.isEmpty) {
+        return RecipePaginationResult(
+          recipes: [],
+          lastDocument: null,
+          lastTimestamp: null,
+          hasMore: false,
+        );
+      }
+
+      // 5. Convert to recipes and apply remaining filters
+      List<Recipe> allRecipes = snapshot.docs.map((doc) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id;
+        return Recipe.fromMap(data);
+      }).toList();
+
+      // Apply local filters that can't be done in Firebase
+      List<Recipe> filteredRecipes = allRecipes
+          .where((r) => !swipedIds.contains(r.id)) // Exclude swiped recipes
+          .where((r) {
+            // Additional dietary criteria filtering (for exact matches)
+            if (dietaryCriteria == null || dietaryCriteria.isEmpty) return true;
+            return dietaryCriteria.every((criteria) => r.dietaryCriteria.contains(criteria));
+          })
+          .toList();
+
+      // 6. If all recipes are swiped, try to load more automatically
+      if (filteredRecipes.isEmpty && snapshot.docs.length >= batchSize) {
+        // Get the last timestamp from the current batch
+        DateTime? nextTimestamp = allRecipes.isNotEmpty ? allRecipes.last.createdAt : null;
+        
+        if (nextTimestamp != null) {
+          // Recursively call with the next timestamp
+          return getRecipesForFeedPrecise(
+            userId: userId,
+            lastTimestamp: nextTimestamp,
+            limit: limit,
+            dietaryCriteria: dietaryCriteria,
+            minTime: minTime,
+            maxTime: maxTime,
+          );
+        }
+      }
+
+      // 7. Return all valid recipes (not just the limit)
+      // This allows the HomeScreen to manage the pool properly
+      List<Recipe> finalRecipes = filteredRecipes.toList(); // Return all valid recipes
+
+      // 8. Determine if there are more recipes available
+      bool hasMore = snapshot.docs.length >= batchSize; // If we got a full batch, there might be more
+
+      // 9. Set the last timestamp for pagination (more reliable than document)
+      DateTime? lastTime = finalRecipes.isNotEmpty ? finalRecipes.last.createdAt : null;
+      
+      // Keep lastDocument for backward compatibility
+      DocumentSnapshot? lastDoc = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;
+
+      // 10. Load creator data efficiently
+      if (finalRecipes.isNotEmpty) {
+        finalRecipes = await _loadCreatorDataForRecipes(finalRecipes);
+      }
+
+      return RecipePaginationResult(
+        recipes: finalRecipes,
+        lastDocument: lastDoc,
+        lastTimestamp: lastTime,
+        hasMore: hasMore,
+      );
+    } catch (e) {
+      return RecipePaginationResult(
+        recipes: [],
+        lastDocument: null,
+        lastTimestamp: null,
+        hasMore: false,
+      );
+    }
+  }
+
+  /// Get recipes for feed with caching and recommendation system
+  Future<RecipePaginationResult> getRecipesForFeedWithCache({
     required String userId,
     DocumentSnapshot? lastDocument,
     int limit = 3,
@@ -451,66 +604,214 @@ class RecipeService {
     Duration? maxTime,
   }) async {
     try {
-      // 1. Load the IDs of recipes already swiped by the user
+      // 1. Check if we have cached recommendations for this user
+      final cacheKey = _generateCacheKey(userId, dietaryCriteria, minTime, maxTime);
+      final cachedRecipes = await _getCachedRecipes(cacheKey);
+      
+      if (cachedRecipes.isNotEmpty) {
+        return _processCachedRecipes(cachedRecipes, limit, lastDocument);
+      }
+
+      // 2. Get user's swiped recipes
       final swipesDoc = await _firestore.collection('swipes').doc(userId).get();
       Set<String> swipedIds = {};
       if (swipesDoc.exists && swipesDoc.data() != null && swipesDoc.data()!['swipedRecipes'] != null) {
         swipedIds = Set<String>.from((swipesDoc.data()!['swipedRecipes'] as Map).keys);
       }
 
-      // 2. Build the query for recipes (exclude own recipes, filters)
+      // 3. Get user preferences for scoring
+      final userPrefs = await _getUserPreferences(userId);
+
+      // 4. Build base query
       Query query = _firestore.collection('recipes')
           .where('creatorId', isNotEqualTo: userId);
 
-      // Time filters
-      if (minTime != null && maxTime != null) {
+      // Apply filters
+      if (minTime != null && maxTime != null && minTime.inMinutes != -1 && maxTime.inMinutes != -1) {
         query = query.where('totalEstimatedTime', isGreaterThanOrEqualTo: minTime.inSeconds)
                      .where('totalEstimatedTime', isLessThanOrEqualTo: maxTime.inSeconds);
-      } else if (minTime != null) {
+      } else if (minTime != null && minTime.inMinutes != -1) {
         query = query.where('totalEstimatedTime', isGreaterThanOrEqualTo: minTime.inSeconds);
-      } else if (maxTime != null) {
+      } else if (maxTime != null && maxTime.inMinutes != -1) {
         query = query.where('totalEstimatedTime', isLessThanOrEqualTo: maxTime.inSeconds);
       }
 
-      query = query.orderBy('createdAt', descending: true);
-      if (lastDocument != null) {
-        query = query.startAfterDocument(lastDocument);
+      if (dietaryCriteria != null && dietaryCriteria.isNotEmpty) {
+        query = query.where('dietaryCriteria', arrayContainsAny: dietaryCriteria);
       }
-      query = query.limit(limit);
 
-      // 3. Execute the query
-      QuerySnapshot snapshot = await query.get();
+      query = query.orderBy('createdAt', descending: true);
 
-      // 4. Local filter: exclude recipes already swiped and filter by dietary criteria (AND logic)
-      List<Recipe> recipes = snapshot.docs.map((doc) {
+      // 5. Fetch recipes
+      int batchSize = limit * 4; // Larger batch for scoring
+      QuerySnapshot snapshot = await query.limit(batchSize).get();
+
+      if (snapshot.docs.isEmpty) {
+        return RecipePaginationResult(recipes: [], lastDocument: null, hasMore: false);
+      }
+
+      // 6. Convert and score recipes
+      List<Recipe> allRecipes = snapshot.docs.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         data['id'] = doc.id;
         return Recipe.fromMap(data);
-      })
-      .where((r) => !swipedIds.contains(r.id))
-      .where((r) => dietaryCriteria == null || dietaryCriteria.isEmpty || dietaryCriteria.every((tag) => r.dietaryCriteria.contains(tag)))
-      .toList();
+      }).toList();
 
-      // Load creator data for all recipes
-      recipes = await _loadCreatorDataForRecipes(recipes);
+      // 7. Filter and score recipes
+      List<_ScoredRecipe> scoredRecipes = allRecipes
+          .where((r) => !swipedIds.contains(r.id))
+          .map((recipe) => _ScoredRecipe(
+            recipe: recipe,
+            score: _calculateRecipeScore(recipe, userPrefs),
+          ))
+          .toList();
 
-      DocumentSnapshot? newLastDocument = snapshot.docs.isNotEmpty 
-          ? snapshot.docs.last 
-          : null;
+      // 8. Sort by score and take top recipes
+      scoredRecipes.sort((a, b) => b.score.compareTo(a.score));
+      List<Recipe> finalRecipes = scoredRecipes
+          .take(limit)
+          .map((scored) => scored.recipe)
+          .toList();
+
+      // 9. Cache the results
+      await _cacheRecipes(cacheKey, finalRecipes);
+
+      // 10. Load creator data
+      if (finalRecipes.isNotEmpty) {
+        finalRecipes = await _loadCreatorDataForRecipes(finalRecipes);
+      }
 
       return RecipePaginationResult(
-        recipes: recipes,
-        lastDocument: newLastDocument,
-        hasMore: snapshot.docs.length == limit,
+        recipes: finalRecipes,
+        lastDocument: snapshot.docs.isNotEmpty ? snapshot.docs.last : null,
+        hasMore: scoredRecipes.length > limit || snapshot.docs.length >= batchSize,
       );
     } catch (e) {
-      // Error getting recipes for feed
-      return RecipePaginationResult(
-        recipes: [],
-        lastDocument: null,
-        hasMore: false,
-      );
+      return RecipePaginationResult(recipes: [], lastDocument: null, hasMore: false);
     }
+  }
+
+  /// Generate cache key based on user and filters
+  String _generateCacheKey(String userId, List<String>? dietaryCriteria, Duration? minTime, Duration? maxTime) {
+    final criteria = dietaryCriteria?.join(',') ?? 'all';
+    final timeRange = '${minTime?.inMinutes ?? -1}-${maxTime?.inMinutes ?? -1}';
+    return 'feed_${userId}_${criteria}_$timeRange';
+  }
+
+  /// Get cached recipes
+  Future<List<Recipe>> _getCachedRecipes(String cacheKey) async {
+    try {
+      final cacheDoc = await _firestore
+          .collection('recipe_cache')
+          .doc(cacheKey)
+          .get();
+
+      if (!cacheDoc.exists || cacheDoc.data() == null) return [];
+
+      final data = cacheDoc.data() as Map<String, dynamic>;
+      final timestamp = (data['timestamp'] as Timestamp).toDate();
+      final now = DateTime.now();
+
+      // Cache expires after 30 minutes
+      if (now.difference(timestamp).inMinutes > 30) {
+        return [];
+      }
+
+      final recipeIds = List<String>.from(data['recipeIds'] ?? []);
+      if (recipeIds.isEmpty) return [];
+
+      return await _getRecipesByIds(recipeIds);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Cache recipes
+  Future<void> _cacheRecipes(String cacheKey, List<Recipe> recipes) async {
+    try {
+      final recipeIds = recipes.map((r) => r.id).toList();
+      await _firestore
+          .collection('recipe_cache')
+          .doc(cacheKey)
+          .set({
+            'recipeIds': recipeIds,
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+    } catch (e) {
+      // Cache failure is not critical
+    }
+  }
+
+  /// Process cached recipes for pagination
+  RecipePaginationResult _processCachedRecipes(List<Recipe> cachedRecipes, int limit, DocumentSnapshot? lastDocument) {
+    int startIndex = 0;
+    if (lastDocument != null) {
+      // Find the index of the last document
+      final lastRecipeId = (lastDocument.data() as Map<String, dynamic>)['id'] as String?;
+      if (lastRecipeId != null) {
+        startIndex = cachedRecipes.indexWhere((r) => r.id == lastRecipeId) + 1;
+      }
+    }
+
+    final recipes = cachedRecipes.skip(startIndex).take(limit).toList();
+    final hasMore = startIndex + limit < cachedRecipes.length;
+
+    return RecipePaginationResult(
+      recipes: recipes,
+      lastDocument: recipes.isNotEmpty ? lastDocument : null,
+      hasMore: hasMore,
+    );
+  }
+
+  /// Get user preferences for scoring
+  Future<Map<String, dynamic>> _getUserPreferences(String userId) async {
+    try {
+      final prefsDoc = await _firestore
+          .collection('user_preferences')
+          .doc(userId)
+          .get();
+
+      if (!prefsDoc.exists || prefsDoc.data() == null) {
+        return {};
+      }
+
+      return Map<String, dynamic>.from(prefsDoc.data() as Map<String, dynamic>);
+    } catch (e) {
+      return {};
+    }
+  }
+
+  /// Calculate recipe score based on user preferences
+  double _calculateRecipeScore(Recipe recipe, Map<String, dynamic> userPrefs) {
+    double score = 0.0;
+
+    // Base score from popularity
+    score += recipe.forkInCount * 0.1;
+    score -= recipe.forkOutCount * 0.05;
+
+    // Ingredient preferences
+    final ingredientScores = Map<String, double>.from(userPrefs['ingredientScores'] ?? {});
+    for (String ingredient in recipe.ingredients) {
+      score += ingredientScores[ingredient.toLowerCase()] ?? 0;
+    }
+
+    // Dietary preferences
+    final dietaryScores = Map<String, double>.from(userPrefs['dietaryScores'] ?? {});
+    for (String criteria in recipe.dietaryCriteria) {
+      score += dietaryScores[criteria.toLowerCase()] ?? 0;
+    }
+
+    // Tag preferences
+    final tagScores = Map<String, double>.from(userPrefs['tagScores'] ?? {});
+    for (String tag in recipe.tags) {
+      score += tagScores[tag.toLowerCase()] ?? 0;
+    }
+
+    // Recency bonus (newer recipes get slight boost)
+    final daysSinceCreation = DateTime.now().difference(recipe.createdAt).inDays;
+    score += (30 - daysSinceCreation) * 0.01; // Bonus for newer recipes
+
+    return score;
   }
 
   /// Delete a recipe and all related data (cascade delete)
@@ -930,17 +1231,217 @@ class RecipeService {
       return [];
     }
   }
+
+  /// Get recipes for feed with batch processing and pre-computed feeds
+  Future<RecipePaginationResult> getRecipesForFeedBatch({
+    required String userId,
+    DocumentSnapshot? lastDocument,
+    int limit = 3,
+    List<String>? dietaryCriteria,
+    Duration? minTime,
+    Duration? maxTime,
+  }) async {
+    try {
+      // 1. Check if user has a pre-computed feed
+      final feedKey = _generateFeedKey(userId, dietaryCriteria, minTime, maxTime);
+      final preComputedFeed = await _getPreComputedFeed(feedKey);
+      
+      if (preComputedFeed.isNotEmpty) {
+        return _processPreComputedFeed(preComputedFeed, limit, lastDocument);
+      }
+
+      // 2. Generate feed on-demand if not available
+      await _generateUserFeed(userId, dietaryCriteria, minTime, maxTime);
+      
+      // 3. Try to get the generated feed
+      final generatedFeed = await _getPreComputedFeed(feedKey);
+      
+      if (generatedFeed.isNotEmpty) {
+        return _processPreComputedFeed(generatedFeed, limit, lastDocument);
+      }
+
+      // 4. Fallback to direct query if feed generation fails
+      return await getRecipesForFeedPrecise(
+        userId: userId,
+        lastDocument: lastDocument,
+        limit: limit,
+        dietaryCriteria: dietaryCriteria,
+        minTime: minTime,
+        maxTime: maxTime,
+      );
+    } catch (e) {
+      return RecipePaginationResult(recipes: [], lastDocument: null, hasMore: false);
+    }
+  }
+
+  /// Generate feed key for pre-computed feeds
+  String _generateFeedKey(String userId, List<String>? dietaryCriteria, Duration? minTime, Duration? maxTime) {
+    final criteria = dietaryCriteria?.join(',') ?? 'all';
+    final timeRange = '${minTime?.inMinutes ?? -1}-${maxTime?.inMinutes ?? -1}';
+    return 'feed_${userId}_${criteria}_$timeRange';
+  }
+
+  /// Get pre-computed feed for user
+  Future<List<Recipe>> _getPreComputedFeed(String feedKey) async {
+    try {
+      final feedDoc = await _firestore
+          .collection('user_feeds')
+          .doc(feedKey)
+          .get();
+
+      if (!feedDoc.exists || feedDoc.data() == null) return [];
+
+      final data = feedDoc.data() as Map<String, dynamic>;
+      final timestamp = (data['lastUpdated'] as Timestamp).toDate();
+      final now = DateTime.now();
+
+      // Feed expires after 1 hour
+      if (now.difference(timestamp).inHours > 1) {
+        return [];
+      }
+
+      final recipeIds = List<String>.from(data['recipeIds'] ?? []);
+      if (recipeIds.isEmpty) return [];
+
+      return await _getRecipesByIds(recipeIds);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Process pre-computed feed for pagination
+  RecipePaginationResult _processPreComputedFeed(List<Recipe> feed, int limit, DocumentSnapshot? lastDocument) {
+    int startIndex = 0;
+    if (lastDocument != null) {
+      final lastRecipeId = (lastDocument.data() as Map<String, dynamic>)['id'] as String?;
+      if (lastRecipeId != null) {
+        startIndex = feed.indexWhere((r) => r.id == lastRecipeId) + 1;
+      }
+    }
+
+    final recipes = feed.skip(startIndex).take(limit).toList();
+    final hasMore = startIndex + limit < feed.length;
+
+    return RecipePaginationResult(
+      recipes: recipes,
+      lastDocument: recipes.isNotEmpty ? lastDocument : null,
+      hasMore: hasMore,
+    );
+  }
+
+  /// Generate user feed in background
+  Future<void> _generateUserFeed(String userId, List<String>? dietaryCriteria, Duration? minTime, Duration? maxTime) async {
+    try {
+      // 1. Get user's swiped recipes
+      final swipesDoc = await _firestore.collection('swipes').doc(userId).get();
+      Set<String> swipedIds = {};
+      if (swipesDoc.exists && swipesDoc.data() != null && swipesDoc.data()!['swipedRecipes'] != null) {
+        swipedIds = Set<String>.from((swipesDoc.data()!['swipedRecipes'] as Map).keys);
+      }
+
+      // 2. Build query for available recipes
+      Query query = _firestore.collection('recipes')
+          .where('creatorId', isNotEqualTo: userId);
+
+      // Apply filters
+      if (minTime != null && maxTime != null && minTime.inMinutes != -1 && maxTime.inMinutes != -1) {
+        query = query.where('totalEstimatedTime', isGreaterThanOrEqualTo: minTime.inSeconds)
+                     .where('totalEstimatedTime', isLessThanOrEqualTo: maxTime.inSeconds);
+      } else if (minTime != null && minTime.inMinutes != -1) {
+        query = query.where('totalEstimatedTime', isGreaterThanOrEqualTo: minTime.inSeconds);
+      } else if (maxTime != null && maxTime.inMinutes != -1) {
+        query = query.where('totalEstimatedTime', isLessThanOrEqualTo: maxTime.inSeconds);
+      }
+
+      if (dietaryCriteria != null && dietaryCriteria.isNotEmpty) {
+        query = query.where('dietaryCriteria', arrayContainsAny: dietaryCriteria);
+      }
+
+      query = query.orderBy('createdAt', descending: true);
+
+      // 3. Fetch recipes in batches
+      List<Recipe> allRecipes = [];
+      QuerySnapshot snapshot;
+      DocumentSnapshot? lastDoc;
+      const int batchSize = 50;
+
+      do {
+        Query batchQuery = query.limit(batchSize);
+        if (lastDoc != null) {
+          batchQuery = batchQuery.startAfterDocument(lastDoc);
+        }
+
+        snapshot = await batchQuery.get();
+        
+        final batchRecipes = snapshot.docs.map((doc) {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          data['id'] = doc.id;
+          return Recipe.fromMap(data);
+        }).toList();
+
+        allRecipes.addAll(batchRecipes);
+        lastDoc = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;
+      } while (snapshot.docs.length == batchSize);
+
+      // 4. Filter out swiped recipes
+      allRecipes = allRecipes.where((r) => !swipedIds.contains(r.id)).toList();
+
+      // 5. Apply additional dietary filtering
+      if (dietaryCriteria != null && dietaryCriteria.isNotEmpty) {
+        allRecipes = allRecipes.where((r) {
+          return dietaryCriteria.every((criteria) => r.dietaryCriteria.contains(criteria));
+        }).toList();
+      }
+
+      // 6. Score and sort recipes
+      final userPrefs = await _getUserPreferences(userId);
+      List<_ScoredRecipe> scoredRecipes = allRecipes.map((recipe) => _ScoredRecipe(
+        recipe: recipe,
+        score: _calculateRecipeScore(recipe, userPrefs),
+      )).toList();
+
+      scoredRecipes.sort((a, b) => b.score.compareTo(a.score));
+
+      // 7. Take top recipes (limit to 100 for performance)
+      final topRecipes = scoredRecipes.take(100).map((scored) => scored.recipe).toList();
+
+      // 8. Save pre-computed feed
+      final feedKey = _generateFeedKey(userId, dietaryCriteria, minTime, maxTime);
+      await _savePreComputedFeed(feedKey, topRecipes);
+    } catch (e) {
+      // Error generating user feed
+    }
+  }
+
+  /// Save pre-computed feed
+  Future<void> _savePreComputedFeed(String feedKey, List<Recipe> recipes) async {
+    try {
+      final recipeIds = recipes.map((r) => r.id).toList();
+      await _firestore
+          .collection('user_feeds')
+          .doc(feedKey)
+          .set({
+            'recipeIds': recipeIds,
+            'lastUpdated': FieldValue.serverTimestamp(),
+            'count': recipes.length,
+          });
+    } catch (e) {
+      // Error saving pre-computed feed
+    }
+  }
 }
 
 /// Result class for pagination
 class RecipePaginationResult {
   final List<Recipe> recipes;
   final DocumentSnapshot? lastDocument;
+  final DateTime? lastTimestamp;
   final bool hasMore;
 
   RecipePaginationResult({
     required this.recipes,
     this.lastDocument,
+    this.lastTimestamp,
     required this.hasMore,
   });
 }
