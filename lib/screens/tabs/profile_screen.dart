@@ -8,7 +8,8 @@ import 'package:image_cropper/image_cropper.dart';
 import 'dart:io';
 import 'package:forking/screens/welcome_screen.dart';
 import 'package:forking/services/recipe_service.dart';
-import 'package:forking/screens/tabs/add_recipe_screen.dart';
+import 'package:forking/screens/add_recipe_screen.dart';
+import 'package:forking/utils/haptic_feedback.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -410,10 +411,10 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
               onPressed: () => Navigator.of(context).pop(false),
             ),
             TextButton(
-              child: const Text('Delete'),
               style: TextButton.styleFrom(
                 foregroundColor: Theme.of(context).colorScheme.error,
               ),
+              child: const Text('Delete'),
               onPressed: () => Navigator.of(context).pop(true),
             ),
           ],
@@ -511,7 +512,10 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 Icons.logout,
                 color: Theme.of(context).colorScheme.primary,
               ),
-              onPressed: _signOut,
+              onPressed: () async {
+                await HapticUtils.triggerHeavyImpact();
+                _signOut();
+              },
             ),
           ],
         ),
@@ -1062,7 +1066,10 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
           context,
           MaterialPageRoute(
             builder: (context) => AddRecipeScreen(
-              onRecipeAdded: _loadRecipes,
+              onRecipeAdded: () {
+                _loadRecipes();
+                Navigator.pop(context);
+              },
             ),
           ),
         );
@@ -1192,7 +1199,10 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                   top: 12,
                   left: 12,
                   child: GestureDetector(
-                    onTap: () => _deleteRecipe(recipe),
+                    onTap: () async {
+                      await HapticUtils.triggerHeavyImpact();
+                      _deleteRecipe(recipe);
+                    },
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(

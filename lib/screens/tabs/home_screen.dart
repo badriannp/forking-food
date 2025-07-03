@@ -8,6 +8,7 @@ import 'package:forking/services/recipe_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:forking/services/auth_service.dart';
 import 'package:forking/services/recipe_event_bus.dart';
+import 'package:forking/utils/haptic_feedback.dart';
 import 'dart:async';
 
 typedef CardBuilder = Widget? Function(BuildContext context, int index, int? realIndex);
@@ -47,6 +48,10 @@ class _HomeScreenState extends State<HomeScreen> {
   // Available dietary criteria (loaded from database)
   List<String> availableDietaryCriteria = [];
   bool isLoadingDietaryCriteria = false;
+
+  // Threshold tracking for haptic feedback
+  bool _hasTriggeredForkInThreshold = false;
+  bool _hasTriggeredForkOutThreshold = false;
 
   List<Recipe> get recipesToShow => recipes;
 
@@ -316,6 +321,7 @@ class _HomeScreenState extends State<HomeScreen> {
             size: 28,
           ),
           onPressed: () {
+            HapticUtils.triggerSelection();
             // Navigate to add recipe screen
             Navigator.pushNamed(context, '/add-recipe');
           },
@@ -326,7 +332,10 @@ class _HomeScreenState extends State<HomeScreen> {
               Icons.settings,
               color: Theme.of(context).colorScheme.primary,
             ),
-            onPressed: _showFilterModal,
+            onPressed: () {
+              HapticUtils.triggerSelection();
+              _showFilterModal();
+            },
           ),
         ],
       ),
@@ -344,7 +353,10 @@ class _HomeScreenState extends State<HomeScreen> {
             height: constraints.maxHeight,
             child: recipesToShow.isEmpty || hasReachedEnd
                 ? RefreshIndicator(
-                    onRefresh: _refreshRecipes,
+                    onRefresh: () async {
+                      await _refreshRecipes();
+                      HapticUtils.triggerSelection();
+                    },
                     child: SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       child: SizedBox(
@@ -371,6 +383,23 @@ class _HomeScreenState extends State<HomeScreen> {
                               down: false,
                             ),
                             cardBuilder: (BuildContext context, int index, int percentThresholdX, int percentThresholdY) {
+                              // Trigger haptic feedback when crossing thresholds
+                              if (percentThresholdX > 200 && !_hasTriggeredForkInThreshold) {
+                                _hasTriggeredForkInThreshold = true;
+                                HapticUtils.triggerHeavyImpact();
+                              } else if (percentThresholdX < 150 && percentThresholdX > 0 && _hasTriggeredForkInThreshold) {
+                                _hasTriggeredForkInThreshold = false;
+                                HapticUtils.triggerHeavyImpact();
+                              }
+                              
+                              if (percentThresholdX < -200 && !_hasTriggeredForkOutThreshold) {
+                                _hasTriggeredForkOutThreshold = true;
+                                HapticUtils.triggerHeavyImpact();
+                              } else if (percentThresholdX > -150 && percentThresholdX < 0 && _hasTriggeredForkOutThreshold) {
+                                _hasTriggeredForkOutThreshold = false;
+                                HapticUtils.triggerHeavyImpact();
+                              }
+                              
                               return Stack(
                                 children: [
                                   RecipeCard(
@@ -507,6 +536,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool _onSwipe(int previousIndex, int? currentIndex, CardSwiperDirection direction) {
     
+    // Reset threshold tracking for next card
+    _hasTriggeredForkInThreshold = false;
+    _hasTriggeredForkOutThreshold = false;
+    
     // Save swipe action to Firebase
     if (previousIndex < recipesToShow.length) {
       final recipe = recipesToShow[previousIndex];
@@ -630,6 +663,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const Spacer(),
                     TextButton(
                       onPressed: () async {
+                        HapticUtils.triggerSelection();
                         setState(() {
                           selectedDietaryCriteria.clear();
                           minTime = const Duration(minutes: -1);
@@ -809,6 +843,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () async {
+                      HapticUtils.triggerSelection();
                       Navigator.pop(context, 'apply');
                       await _reloadRecipesWithFilters();
                     },

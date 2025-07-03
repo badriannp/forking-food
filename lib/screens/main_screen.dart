@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:forking/screens/tabs/discover_screen.dart';
 import 'package:forking/screens/tabs/home_screen.dart';
 import 'package:forking/screens/tabs/profile_screen.dart';
+import 'package:forking/utils/haptic_feedback.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -35,6 +36,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _onItemTapped(int index) {
+    HapticUtils.triggerSelection();
     FocusScope.of(context).unfocus();
     PageStorage.of(context).writeState(context, index, identifier: _storageKey);
     setState(() => _selectedIndex = index);

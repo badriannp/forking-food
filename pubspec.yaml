@@ -49,6 +49,7 @@ dependencies:
   image_cropper: ^9.1.0
   http: ^1.1.0
   font_awesome_flutter: ^10.8.0
+  vibration: ^1.8.4
 
 dev_dependencies:
   flutter_test:

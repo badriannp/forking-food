@@ -5,6 +5,7 @@ import 'package:forking/widgets/recipe_card.dart';
 import 'package:forking/services/recipe_service.dart';
 import 'package:forking/services/auth_service.dart';
 import 'package:forking/services/recipe_event_bus.dart';
+import 'package:forking/utils/haptic_feedback.dart';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -156,6 +157,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
 
   /// Handle fork-in action (save recipe)
   void _handleForkIn(Recipe recipe) async {
+    // Trigger haptic feedback
+    HapticUtils.triggerSuccess();
+    
     // Save swipe in Firebase
     final String? userId = _authService.userId;
     if (userId != null) {
@@ -186,6 +190,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
 
   /// Handle fork-out action (skip recipe)
   void _handleForkOut(Recipe recipe) async {
+    // Trigger haptic feedback
+    HapticUtils.triggerSelection();
+    
     // Save swipe in Firebase
     final String? userId = _authService.userId;
     if (userId != null) {
@@ -260,6 +267,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
             size: 28,
           ),
           onPressed: () {
+            HapticUtils.triggerSelection();
             // Navigate to add recipe screen
             Navigator.pushNamed(context, '/add-recipe');
           },
@@ -292,11 +300,17 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
               controller: _tabController,
               children: [
                 RefreshIndicator(
-                  onRefresh: _loadTodayFavorites,
+                  onRefresh: () async {
+                    await _loadTodayFavorites();
+                    HapticUtils.triggerSelection();
+                  },
                   child: _buildTodayFavoritesTab(),
                 ),
                 RefreshIndicator(
-                  onRefresh: _loadRecommendations,
+                  onRefresh: () async {
+                    await _loadRecommendations();
+                    HapticUtils.triggerSelection();
+                  },
                   child: _buildRecommendationsTab(),
                 ),
               ],
@@ -341,6 +355,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
   Widget _buildLeaderboardCard(Recipe recipe, int rank) {
     return GestureDetector(
       onTap: () {
+        // HapticUtils.triggerSelection();
         _showRecipeCardOverlay(context, recipe);
       },
       child: Container(
@@ -610,7 +625,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                 child: _buildActionButton(
                   icon: Icons.delete_outline,
                   color: Colors.red,
-                  onTap: () => _handleForkOut(recipe),
+                  onTap: () {
+                    HapticUtils.triggerSelection();
+                    _handleForkOut(recipe);
+                  },
                   isDisabled: isSwiped,
                   isSelected: isSwiped && swipeDirection == 'left',
                   selectedIcon: Icons.check,
@@ -622,7 +640,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                 child: _buildActionButton(
                   icon: Icons.restaurant,
                   color: Colors.green,
-                  onTap: () => _handleForkIn(recipe),
+                  onTap: () {
+                    HapticUtils.triggerSelection();
+                    _handleForkIn(recipe);
+                  },
                   isDisabled: isSwiped,
                   isSelected: isSwiped && swipeDirection == 'right',
                   selectedIcon: Icons.check,
@@ -635,7 +656,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                 child: _buildActionButton(
                   icon: Icons.close,
                   color: Colors.grey,
-                  onTap: () => Navigator.of(context).pop(),
+                  onTap: () {
+                    HapticUtils.triggerSelection();
+                    Navigator.of(context).pop();
+                  },
                 ),
               ),
             ],
