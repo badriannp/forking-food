@@ -767,7 +767,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
   Widget _buildSearchBar() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      margin: const EdgeInsets.only(left: 20, right: 20, top: 8),
       height: 32,
       child: TextField(
         controller: _searchController,
@@ -1079,7 +1079,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
           borderRadius: BorderRadius.circular(12.0),
           color: Colors.grey[50],
           border: Border.all(
-            color: Colors.grey[300]!,
+            color: Theme.of(context).colorScheme.primary,
             width: 1,
           ),
         ),
@@ -1089,13 +1089,13 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             Icon(
               Icons.add_rounded,
               size: 64,
-              color: Colors.grey[500],
+              color: Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(height: 8),
             Text(
               'Add Recipe',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[600],
+                color: Theme.of(context).colorScheme.primary,
                 fontWeight: FontWeight.w500,
               ),
             ),

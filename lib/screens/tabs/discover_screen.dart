@@ -692,7 +692,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  'No recommendations yet',
+                  'There\'s nothing here',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -700,7 +700,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Start swiping to get personalized recommendations',
+                  'Check later for more recommendations',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                   ),

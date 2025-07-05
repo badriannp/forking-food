@@ -1049,27 +1049,37 @@ class _HomeScreenState extends State<HomeScreen> {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        spacing: 12,
         children: [
-          Icon(
-            Icons.search,
-            size: 80,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(height: 20),
           Text(
-            'No recipes found',
+            'No recipes left',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.bold,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Try adjusting your filters',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+          GestureDetector(
+            onTap: () {
+              HapticUtils.triggerSelection();
+              Navigator.pushNamed(context, '/add-recipe');
+            },
+            child: Column(
+              spacing: 8,
+              children: [
+                Text(
+                'It\'s time to add your own recipe',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                Icon(
+                  Icons.add,
+                  size: 48,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ],
             ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
