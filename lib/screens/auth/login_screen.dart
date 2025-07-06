@@ -4,6 +4,7 @@ import 'package:forking/screens/auth/forgot_password_screen.dart';
 import 'package:forking/services/auth_service.dart';
 import 'package:forking/screens/auth/register_screen.dart';
 import 'package:forking/screens/main_screen.dart';
+import 'package:forking/utils/haptic_feedback.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,6 +14,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final authService = AuthService();
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -49,18 +51,19 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
+    _emailController.text = _emailController.text.trim();
     setState(() {
       _firebaseError = null;
       _isLoading = true;
     });
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) {
+      HapticUtils.triggerValidationError();
       setState(() {
         _isLoading = false;
       });
       return;
     }
-    final authService = AuthService();
     try {
       await authService.signIn(_emailController.text, _passwordController.text);
       if (!mounted) return;
@@ -69,6 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
         (route) => false,
       );
     } on Exception catch (e) {
+      HapticUtils.triggerHeavyImpact();
       if (!mounted) return;
       String message = e.toString();
       if (message.contains('user-not-found') || message.contains('wrong-password')) {
@@ -81,6 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     } finally {
+      HapticUtils.triggerSuccess();
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -144,6 +149,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         onEditingComplete: () {
+                          _emailController.text = _emailController.text.trim();
                           FocusScope.of(context).requestFocus(_passwordFocus);
                         },
                       ),
@@ -167,18 +173,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           _handleLogin();
                         },
                       ),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
-                            );
-                          },
-                          child: const Text('Forgot password?'),
-                        ),
-                      ),
                       if (_firebaseError != null) ...[
                         const SizedBox(height: 8),
                         Align(
@@ -192,6 +186,19 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ],
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () {
+                            HapticUtils.triggerSelection();
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+                            );
+                          },
+                          child: const Text('Forgot password?'),
+                        ),
+                      ),
                       const SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
@@ -229,6 +236,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           const Text("Don't have an account? "),
                           TextButton(
                             onPressed: () {
+                              HapticUtils.triggerSelection();
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(builder: (_) => const RegisterScreen()),

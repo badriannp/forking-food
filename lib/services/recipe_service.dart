@@ -5,6 +5,7 @@ import '../models/recipe.dart';
 import 'package:image/image.dart' as img;
 import 'dart:typed_data';
 import 'user_service.dart';
+import 'package:forking/utils/image_utils.dart' as image_utils;
 
 class RecipeService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -83,7 +84,7 @@ class RecipeService {
       // Encode as JPEG with 85% quality
       final jpegBytes = img.encodeJpg(resized, quality: 85);
       Reference ref = _storage.ref().child('$storagePath.jpg');
-      final metadata = SettableMetadata(contentType: _userService.getContentTypeFromPath(imagePath));
+      final metadata = SettableMetadata(contentType: image_utils.getContentTypeFromPath(imagePath));
       UploadTask uploadTask = ref.putData(Uint8List.fromList(jpegBytes), metadata);
       TaskSnapshot snapshot = await uploadTask;
       return await snapshot.ref.getDownloadURL();

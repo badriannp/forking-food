@@ -1,3 +1,5 @@
+import 'package:path/path.dart' as path;
+
 String getResizedImageUrl({
   required String originalUrl,
   required int size, // 100, 300, or 600
@@ -15,4 +17,19 @@ String getResizedImageUrl({
   newPathSegments.add(resizedName);
 
   return uri.replace(pathSegments: newPathSegments).toString();
+}
+
+String getContentTypeFromPath(String filePath) {
+  final ext = path.extension(filePath).toLowerCase();
+  switch (ext) {
+    case '.png':
+      return 'image/png';
+    case '.webp':
+      return 'image/webp';
+    case '.jpg':
+    case '.jpeg':
+      return 'image/jpeg';
+    default:
+      return 'image/jpeg'; // fallback sigur
+  }
 }

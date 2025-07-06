@@ -1049,10 +1049,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        spacing: 12,
+        spacing: 8,
         children: [
           Text(
-            'No recipes left',
+            'No recipes for now',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.bold,
             ),
@@ -1064,7 +1064,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Navigator.pushNamed(context, '/add-recipe');
             },
             child: Column(
-              spacing: 8,
+              spacing: 12,
               children: [
                 Text(
                 'It\'s time to add your own recipe',

@@ -233,11 +233,6 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         // Upload cropped image to Firebase Storage and update profile
         await _authService.updateProfileImage(croppedFile);
         
-        final String? userId = _authService.userId;
-        if (userId != null) {
-          // User data is now centralized - no need to update recipes
-        }
-        
         // Refresh the UI
         if (mounted) {
           setState(() {
@@ -826,6 +821,39 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     if (isLoading) {
       return const Center(
         child: CircularProgressIndicator(),
+      );
+    }
+
+    if (recipes.isEmpty && !isLoading && isSaved) {
+      return SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.4,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.restaurant,
+                    size: 64,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Fork-in recipes to save them\nin your collection!',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       );
     }
 
