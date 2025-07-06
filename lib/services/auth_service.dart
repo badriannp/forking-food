@@ -7,7 +7,6 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 import '../models/user_data.dart';
 import 'user_service.dart';
-import 'package:path/path.dart' as path;
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
