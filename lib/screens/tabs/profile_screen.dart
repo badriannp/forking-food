@@ -584,7 +584,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 behavior: HitTestBehavior.translucent,
                 onTap: _showProfilePhotoOverlay,
                 child: ProfileAvatarImage(
-                  key: ValueKey('profile_${_profileImageUpdateTimestamp}'),
+                  key: ValueKey('profile_$_profileImageUpdateTimestamp'),
                   imageUrl: userPhotoURL, 
                   radius: 44
                 ),
