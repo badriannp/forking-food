@@ -26,6 +26,7 @@ class _ProfileAvatarImageState extends State<ProfileAvatarImage> {
     if (widget.imageUrl != null) {
       fallbackUrls = [
         getResizedImageUrl(originalUrl: widget.imageUrl!, size: 300),
+        getResizedImageUrl(originalUrl: widget.imageUrl!, size: 600),
         widget.imageUrl!,
       ];
     } else {

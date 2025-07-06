@@ -40,6 +40,9 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
+  // Profile image update tracking
+  int _profileImageUpdateTimestamp = 0;
+
   // Filtered recipes based on search with prioritization
   List<Recipe> get _filteredMyRecipes {
     if (_searchQuery.isEmpty) return _myRecipes;
@@ -237,6 +240,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         if (mounted) {
           setState(() {
             _isUpdatingProfileImage = false;
+            _profileImageUpdateTimestamp = DateTime.now().millisecondsSinceEpoch;
           });
           
           ScaffoldMessenger.of(context).showSnackBar(
@@ -579,7 +583,11 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
               GestureDetector(
                 behavior: HitTestBehavior.translucent,
                 onTap: _showProfilePhotoOverlay,
-                child: ProfileAvatarImage(imageUrl: userPhotoURL, radius: 44),
+                child: ProfileAvatarImage(
+                  key: ValueKey('profile_${_profileImageUpdateTimestamp}'),
+                  imageUrl: userPhotoURL, 
+                  radius: 44
+                ),
               ),
               // Loading overlay
               if (_isUpdatingProfileImage)
@@ -720,7 +728,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                     ],
                   ),
                 ],
-                const SizedBox(height: 16),
+                const SizedBox(height: 4),
                 Row(
                   children: [
                     _buildStatFlex(context, Icons.kitchen, _myRecipes.length.toString(), 'Recipes'),
