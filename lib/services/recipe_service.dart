@@ -78,12 +78,13 @@ class RecipeService {
       if (image == null) {
         throw Exception('Could not decode image');
       }
-      // Redimensionează la max 1200px pe latura mare (opțional, pentru optimizare)
+      // Resize to max 1200px on the larger side (optional, for optimization)
       final resized = img.copyResize(image, width: 1200, interpolation: img.Interpolation.linear);
-      // Encodează ca JPEG cu 85% calitate
+      // Encode as JPEG with 85% quality
       final jpegBytes = img.encodeJpg(resized, quality: 85);
       Reference ref = _storage.ref().child('$storagePath.jpg');
-      UploadTask uploadTask = ref.putData(Uint8List.fromList(jpegBytes));
+      final metadata = SettableMetadata(contentType: _userService.getContentTypeFromPath(imagePath));
+      UploadTask uploadTask = ref.putData(Uint8List.fromList(jpegBytes), metadata);
       TaskSnapshot snapshot = await uploadTask;
       return await snapshot.ref.getDownloadURL();
     } catch (e) {

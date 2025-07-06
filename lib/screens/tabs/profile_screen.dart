@@ -10,6 +10,10 @@ import 'package:forking/screens/welcome_screen.dart';
 import 'package:forking/services/recipe_service.dart';
 import 'package:forking/screens/add_recipe_screen.dart';
 import 'package:forking/utils/haptic_feedback.dart';
+import 'package:forking/utils/image_utils.dart';
+import 'package:forking/widgets/profile_avatar.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:forking/widgets/recipes_tab.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -203,7 +207,6 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 100, // Keep original quality for cropping
     );
 
     if (pickedFile != null) {
@@ -547,32 +550,16 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             },
             body: TabBarView(
             controller: _tabController,
-              children: [
-              // Grid for "My Recipes" with pull-to-refresh
-              RefreshIndicator(
+            children: [
+              RecipeTabView(
                 onRefresh: _refreshRecipes,
-                child: Column(
-                  children: [
-                    // Search bar for My Recipes
-                    _buildSearchBar(),
-                    Expanded(
-                      child: _buildRecipesGrid(isSaved: false),
-                    ),
-                  ],
-                ),
+                searchBarBuilder: _buildSearchBar,
+                gridBuilder: () => _buildRecipesGrid(isSaved: false),
               ),
-              // Grid for "Saved" recipes with pull-to-refresh
-              RefreshIndicator(
+              RecipeTabView(
                 onRefresh: _refreshRecipes,
-                child: Column(
-                  children: [
-                    // Search bar for Saved Recipes
-                    _buildSearchBar(),
-                    Expanded(
-                      child: _buildRecipesGrid(isSaved: true),
-                    ),
-                  ],
-                ),
+                searchBarBuilder: _buildSearchBar,
+                gridBuilder: () => _buildRecipesGrid(isSaved: true),
               ),
             ],
           ),
@@ -597,19 +584,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
               GestureDetector(
                 behavior: HitTestBehavior.translucent,
                 onTap: _showProfilePhotoOverlay,
-                child: CircleAvatar(
-                radius: 44,
-                backgroundImage: userPhotoURL != null 
-                    ? NetworkImage(userPhotoURL)
-                    : null,
-                child: userPhotoURL == null 
-                    ? Icon(
-                        Icons.person,
-                        size: 44,
-                          color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
-                      )
-                    : null,
-              ),
+                child: ProfileAvatarImage(imageUrl: userPhotoURL, radius: 44),
               ),
               // Loading overlay
               if (_isUpdatingProfileImage)
@@ -882,9 +857,21 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Image.network(
-                  recipe.imageUrl,
+                CachedNetworkImage(
+                  fadeInDuration: Duration.zero,
+                  imageUrl: getResizedImageUrl(originalUrl: recipe.imageUrl, size: 600),
                   fit: BoxFit.cover,
+                  errorWidget: (context, url, error) {
+                    return CachedNetworkImage(
+                      fadeInDuration: Duration.zero,
+                      imageUrl: recipe.imageUrl,
+                      fit: BoxFit.cover,
+                      errorWidget: (context, url, error) => Container(
+                        color: Colors.grey.shade200,
+                        child: const Icon(Icons.image_not_supported),
+                      ),
+                    );
+                  },
                 ),
                 // Gradient peste imagine pentru text
                 Container(
@@ -930,7 +917,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                     ),
                   ),
                 ),
-                // Timp în dreapta sus
+                // Time in top right
                 Positioned(
                   top: 8,
                   right: 8,

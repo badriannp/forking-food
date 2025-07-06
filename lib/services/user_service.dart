@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_data.dart';
+import 'package:path/path.dart' as path;
 
 class UserService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -127,6 +128,21 @@ class UserService {
       throw Exception('Failed to update user display name: $e');
     }
   }
+
+  String getContentTypeFromPath(String filePath) {
+    final ext = path.extension(filePath).toLowerCase();
+    switch (ext) {
+      case '.png':
+        return 'image/png';
+      case '.webp':
+        return 'image/webp';
+      case '.jpg':
+      case '.jpeg':
+        return 'image/jpeg';
+      default:
+        return 'image/jpeg'; // fallback sigur
+    }
+}
 
   /// Update user photo URL
   Future<void> updateUserPhotoURL(String userId, String photoURL) async {

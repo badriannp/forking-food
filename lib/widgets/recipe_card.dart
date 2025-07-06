@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:forking/models/recipe.dart';
+import 'package:forking/widgets/creator_avatar.dart';
 
 class RecipeCard extends StatelessWidget {
   final Recipe recipe;
@@ -148,39 +149,7 @@ class RecipeCard extends StatelessWidget {
                         // Creator name and time
                         Row(
                           children: [
-                            // Chef avatar
-                            if (recipe.creatorPhotoURL != null) ...[
-                              Container(
-                                width: 16,
-                                height: 16,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white.withAlpha(220),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: ClipOval(
-                                  child: Image.network(
-                                    recipe.creatorPhotoURL!,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Icon(
-                                        Icons.person_outline,
-                                        size: 16,
-                                        color: Colors.white.withAlpha(220),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ] else ...[
-                            Icon(
-                              Icons.person_outline,
-                              size: 16,
-                              color: Colors.white.withAlpha(220),
-                            ),
-                            ],
+                            CreatorAvatar(imageUrl: recipe.creatorPhotoURL),
                             const SizedBox(width: 4),
                             Text(
                               recipe.creatorName ?? 'Unknown Chef',

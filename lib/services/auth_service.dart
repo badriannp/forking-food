@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 import '../models/user_data.dart';
 import 'user_service.dart';
+import 'package:path/path.dart' as path;
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -235,7 +236,8 @@ class AuthService {
       
       final storageRef = _storage.ref().child('profile_images/$userId.jpg');
       
-      final uploadTask = storageRef.putData(compressedImageData);
+      final metadata = SettableMetadata(contentType: _userService.getContentTypeFromPath(imageFile.path));
+      final uploadTask = storageRef.putData(compressedImageData, metadata);
       final snapshot = await uploadTask;
       
       final downloadURL = await snapshot.ref.getDownloadURL();
