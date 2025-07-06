@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:forking/models/recipe.dart';
 import 'package:forking/widgets/recipe_card.dart';
+import 'package:forking/widgets/creator_avatar.dart';
 import 'package:forking/services/recipe_service.dart';
 import 'package:forking/services/auth_service.dart';
 import 'package:forking/services/recipe_event_bus.dart';
@@ -449,27 +450,12 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        if (recipe.creatorPhotoURL != null && recipe.creatorPhotoURL!.isNotEmpty)
-                          CircleAvatar(
-                            radius: 10,
-                            backgroundImage: NetworkImage(recipe.creatorPhotoURL!),
-                          )
-                        else
-                          Container(
-                            width: 20,
-                            height: 20,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
-                            ),
-                            child: const Center(
-                              child: Icon(
-                                Icons.person,
-                                size: 12,
-                                color: Colors.black54,
-                              ),
-                            ),
-                          ),
+                        CreatorAvatar(
+                          imageUrl: recipe.creatorPhotoURL,
+                          size: 20,
+                          borderColor: null,
+                          fallbackColor: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -831,56 +817,13 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                       Row(
                         children: [
                           // Chef avatar
-                          if (recipe.creatorPhotoURL != null) ...[
-                            Container(
-                              width: 16,
-                              height: 16,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 1,
-                                ),
-                              ),
-                              child: ClipOval(
-                                child: Image.network(
-                                  recipe.creatorPhotoURL!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Container(
-                                      width: 16,
-                                      height: 16,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withAlpha(75),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(
-                                        Icons.person,
-                                        size: 10,
-                                        color: Colors.white,
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                          ] else ...[
-                            Container(
-                              width: 16,
-                              height: 16,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withAlpha(75),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.person,
-                                size: 10,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                          ],
+                          CreatorAvatar(
+                            imageUrl: recipe.creatorPhotoURL,
+                            size: 16,
+                            borderColor: Colors.white,
+                            fallbackColor: Colors.white.withAlpha(75),
+                          ),
+                          const SizedBox(width: 4),
                           // Chef name
                           Expanded(
                             child: Text(

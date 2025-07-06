@@ -14,6 +14,7 @@ import 'package:forking/utils/image_utils.dart';
 import 'package:forking/widgets/profile_avatar.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:forking/widgets/recipes_tab.dart';
+import 'package:forking/widgets/creator_avatar.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -993,69 +994,26 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                    recipe.title,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                        recipe.title,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       if (isSaved) ...[
                         const SizedBox(height: 4),
                         Row(
                           children: [
                             // Chef avatar
-                            if (recipe.creatorPhotoURL != null) ...[
-                              Container(
-                                width: 16,
-                                height: 16,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: 1,
-                                  ),
-                                ),
-                                child: ClipOval(
-                                  child: Image.network(
-                                    recipe.creatorPhotoURL!,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        width: 16,
-                                        height: 16,
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withAlpha(75),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(
-                                          Icons.person,
-                                          size: 10,
-                                          color: Colors.white,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                            ] else ...[
-                              Container(
-                                width: 16,
-                                height: 16,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withAlpha(75),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.person,
-                                  size: 10,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                            ],
+                            CreatorAvatar(
+                              imageUrl: recipe.creatorPhotoURL,
+                              size: 16,
+                              borderColor: Colors.white,
+                              fallbackColor: Colors.white.withAlpha(75),
+                            ),
+                            const SizedBox(width: 4),
                             // Chef name
                             Expanded(
                               child: Text(

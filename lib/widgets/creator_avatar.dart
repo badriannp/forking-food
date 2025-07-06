@@ -3,8 +3,18 @@ import 'package:forking/utils/image_utils.dart';
 
 class CreatorAvatar extends StatefulWidget {
   final String? imageUrl;
-
-  const CreatorAvatar({super.key, this.imageUrl});
+  final double size;
+  final Color? borderColor;
+  final Color? fallbackColor;
+  final double borderWidth;
+  const CreatorAvatar({
+    super.key, 
+    this.imageUrl,
+    this.size = 20,
+    this.borderColor = Colors.transparent,
+    this.fallbackColor,
+    this.borderWidth = 0,
+  });
 
   @override
   State<CreatorAvatar> createState() => _CreatorAvatarState();
@@ -37,15 +47,16 @@ class _CreatorAvatarState extends State<CreatorAvatar> {
     }
 
     final url = fallbackUrls[currentIndex];
+    final effectiveBorderColor = widget.borderColor ?? Colors.white.withAlpha(220);
 
     return Container(
-      width: 16,
-      height: 16,
+      width: widget.size,
+      height: widget.size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: Colors.white.withAlpha(220),
-          width: 1,
+          color: effectiveBorderColor,
+          width: widget.borderWidth,
         ),
       ),
       child: ClipOval(
@@ -54,7 +65,6 @@ class _CreatorAvatarState extends State<CreatorAvatar> {
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
             if (currentIndex < fallbackUrls.length - 1) {
-              // Așteaptă până se termină build-ul curent
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) {
                   setState(() => currentIndex++);
@@ -70,10 +80,12 @@ class _CreatorAvatarState extends State<CreatorAvatar> {
   }
 
   Widget _defaultIcon() {
+    final effectiveFallbackColor = widget.fallbackColor ?? Colors.white.withAlpha(220);
+    
     return Icon(
       Icons.person_outline,
-      size: 16,
-      color: Colors.white.withAlpha(220),
+      size: widget.size,
+      color: effectiveFallbackColor,
     );
   }
 }

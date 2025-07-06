@@ -82,6 +82,7 @@ class RecipeCard extends StatelessWidget {
                     right: 16,
                     bottom: 16,
                     child: Column(
+                      spacing: 8,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Title and likes row
@@ -89,11 +90,11 @@ class RecipeCard extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                          recipe.title,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
+                                recipe.title,
+                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                             // Fork-in count (likes)
@@ -124,7 +125,6 @@ class RecipeCard extends StatelessWidget {
                             // ),
                           ],
                         ),
-                        const SizedBox(height: 8),
                         // Tags
                         if (recipe.tags.isNotEmpty)
                           Wrap(
@@ -145,17 +145,16 @@ class RecipeCard extends StatelessWidget {
                               ),
                             )).toList(),
                           ),
-                        if (recipe.tags.isNotEmpty) const SizedBox(height: 8),
                         // Creator name and time
                         Row(
+                          spacing: 6,
                           children: [
-                            CreatorAvatar(imageUrl: recipe.creatorPhotoURL),
-                            const SizedBox(width: 4),
+                            CreatorAvatar(imageUrl: recipe.creatorPhotoURL!, size: 20),
                             Text(
                               recipe.creatorName ?? 'Unknown Chef',
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: Colors.white.withAlpha(200),
-                                fontSize: 11,
+                                fontSize: 12,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
