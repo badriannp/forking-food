@@ -370,7 +370,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           CardSwiper(
                             scale: 1,
-                            numberOfCardsDisplayed: recipesToShow.length == 1 ? 1 : 2,
+                            threshold: 75,
+                            numberOfCardsDisplayed: recipesToShow.length,
                             backCardOffset: const Offset(0, 0),
                             controller: controller,
                             isLoop: false,
@@ -385,20 +386,20 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             cardBuilder: (BuildContext context, int index, int percentThresholdX, int percentThresholdY) {
                               // Trigger haptic feedback when crossing thresholds
-                              if (percentThresholdX > 200 && !_hasTriggeredForkInThreshold) {
+                              if (percentThresholdX > 95 && !_hasTriggeredForkInThreshold) {
                                 _hasTriggeredForkInThreshold = true;
-                                HapticUtils.triggerHeavyImpact();
-                              } else if (percentThresholdX < 150 && percentThresholdX > 0 && _hasTriggeredForkInThreshold) {
+                                HapticUtils.triggerSuccess();
+                              } else if (percentThresholdX < 75 && percentThresholdX > 0 && _hasTriggeredForkInThreshold) {
                                 _hasTriggeredForkInThreshold = false;
-                                HapticUtils.triggerHeavyImpact();
+                                HapticUtils.triggerSuccess();
                               }
                               
-                              if (percentThresholdX < -200 && !_hasTriggeredForkOutThreshold) {
+                              if (percentThresholdX < -95 && !_hasTriggeredForkOutThreshold) {
                                 _hasTriggeredForkOutThreshold = true;
-                                HapticUtils.triggerHeavyImpact();
-                              } else if (percentThresholdX > -150 && percentThresholdX < 0 && _hasTriggeredForkOutThreshold) {
+                                HapticUtils.triggerSuccess();
+                              } else if (percentThresholdX > -75 && percentThresholdX < 0 && _hasTriggeredForkOutThreshold) {
                                 _hasTriggeredForkOutThreshold = false;
-                                HapticUtils.triggerHeavyImpact();
+                                HapticUtils.triggerSuccess();
                               }
                               
                               return Stack(
@@ -409,7 +410,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     constraints: constraints,
                                   ),
                                   // FORK IN overlay (swipe dreapta)
-                                  if (percentThresholdX > 150)
+                                  if (percentThresholdX > 90)
                                     Positioned(
                                       top: 80,
                                       left: 20,
@@ -441,7 +442,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                     ),
                                   // FORK OUT overlay (swipe stânga)
-                                  if (percentThresholdX < -150)
+                                  if (percentThresholdX < -90)
                                     Positioned(
                                       top: 80,
                                       right: 20,

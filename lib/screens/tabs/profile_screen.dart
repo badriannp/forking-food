@@ -241,7 +241,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         if (mounted) {
           setState(() {
             _isUpdatingProfileImage = false;
-            _profileImageUpdateTimestamp = DateTime.now().millisecondsSinceEpoch;
+            _profileImageUpdateTimestamp = _profileImageUpdateTimestamp == 0 ? 1 : 0;
           });
           
           ScaffoldMessenger.of(context).showSnackBar(
