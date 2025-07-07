@@ -87,6 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
       
       final result = await _recipeService.getRecipesForFeed(
         userId: userId,
+        limit: 10,
         dietaryCriteria: selectedDietaryCriteria.isEmpty ? null : selectedDietaryCriteria.toList(),
         minTime: minTime.inMinutes == -1 ? null : minTime,
         maxTime: maxTime.inMinutes == -1 ? null : maxTime,
@@ -157,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
         userId: userId,
         lastDocument: lastDocument,
         lastTimestamp: lastTimestamp, // Use timestamp-based pagination
-        limit: 3,
+        limit: 25,
         dietaryCriteria: selectedDietaryCriteria.isNotEmpty ? selectedDietaryCriteria.toList() : null,
         minTime: minTime.inMinutes != -1 ? minTime : null,
         maxTime: maxTime.inMinutes != -1 ? maxTime : null,
@@ -226,7 +227,7 @@ class _HomeScreenState extends State<HomeScreen> {
       
       RecipePaginationResult result = await _recipeService.getRecipesForFeed(
         userId: userId,
-        limit: 3,
+        limit: 10,
         dietaryCriteria: selectedDietaryCriteria.isNotEmpty ? selectedDietaryCriteria.toList() : null,
         minTime: minTime.inMinutes != -1 ? minTime : null,
         maxTime: maxTime.inMinutes != -1 ? maxTime : null,

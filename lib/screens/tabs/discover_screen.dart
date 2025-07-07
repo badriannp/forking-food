@@ -615,7 +615,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                     HapticUtils.triggerSelection();
                     _handleForkOut(recipe);
                   },
-                  isDisabled: isSwiped,
+                  isDisabled: isSwiped || recipe.creatorId == _authService.userId,
                   isSelected: isSwiped && swipeDirection == 'left',
                   selectedIcon: Icons.check,
                 ),
@@ -630,7 +630,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                     HapticUtils.triggerSelection();
                     _handleForkIn(recipe);
                   },
-                  isDisabled: isSwiped,
+                  isDisabled: isSwiped || recipe.creatorId == _authService.userId,
                   isSelected: isSwiped && swipeDirection == 'right',
                   selectedIcon: Icons.check,
                 ),

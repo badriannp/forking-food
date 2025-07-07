@@ -570,7 +570,7 @@ class RecipeService {
       bool hasMore = snapshot.docs.length >= batchSize; // If we got a full batch, there might be more
 
       // 9. Set the last timestamp for pagination (more reliable than document)
-      DateTime? lastTime = finalRecipes.isNotEmpty ? finalRecipes.last.createdAt : null;
+      DateTime? lastTime = allRecipes.isNotEmpty ? allRecipes.last.createdAt : null;
       
       // Keep lastDocument for backward compatibility
       DocumentSnapshot? lastDoc = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;
