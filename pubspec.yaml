@@ -50,6 +50,7 @@ dependencies:
   http: ^1.1.0
   font_awesome_flutter: ^10.8.0
   vibration: ^1.8.4
+  path: ^1.9.1
 
 dev_dependencies:
   flutter_test:

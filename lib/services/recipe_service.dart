@@ -5,6 +5,7 @@ import '../models/recipe.dart';
 import 'package:image/image.dart' as img;
 import 'dart:typed_data';
 import 'user_service.dart';
+import 'package:forking/utils/image_utils.dart' as image_utils;
 
 class RecipeService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -78,12 +79,13 @@ class RecipeService {
       if (image == null) {
         throw Exception('Could not decode image');
       }
-      // Redimensionează la max 1200px pe latura mare (opțional, pentru optimizare)
+      // Resize to max 1200px on the larger side (optional, for optimization)
       final resized = img.copyResize(image, width: 1200, interpolation: img.Interpolation.linear);
-      // Encodează ca JPEG cu 85% calitate
+      // Encode as JPEG with 85% quality
       final jpegBytes = img.encodeJpg(resized, quality: 85);
       Reference ref = _storage.ref().child('$storagePath.jpg');
-      UploadTask uploadTask = ref.putData(Uint8List.fromList(jpegBytes));
+      final metadata = SettableMetadata(contentType: image_utils.getContentTypeFromPath(imagePath));
+      UploadTask uploadTask = ref.putData(Uint8List.fromList(jpegBytes), metadata);
       TaskSnapshot snapshot = await uploadTask;
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
@@ -568,7 +570,7 @@ class RecipeService {
       bool hasMore = snapshot.docs.length >= batchSize; // If we got a full batch, there might be more
 
       // 9. Set the last timestamp for pagination (more reliable than document)
-      DateTime? lastTime = finalRecipes.isNotEmpty ? finalRecipes.last.createdAt : null;
+      DateTime? lastTime = allRecipes.isNotEmpty ? allRecipes.last.createdAt : null;
       
       // Keep lastDocument for backward compatibility
       DocumentSnapshot? lastDoc = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;

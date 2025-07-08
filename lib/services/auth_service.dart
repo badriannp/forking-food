@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:image/image.dart' as img;
+import 'package:forking/utils/image_utils.dart' as image_utils;
 import '../models/user_data.dart';
 import 'user_service.dart';
 
@@ -148,7 +149,7 @@ class AuthService {
         return;
       }
 
-      // Create user data with Google photo URL (no copying)
+      // Create user data with Google photo URL
       await _createUserData(userId, finalDisplayName, googlePhotoURL);
 
     } catch (e) {
@@ -235,7 +236,8 @@ class AuthService {
       
       final storageRef = _storage.ref().child('profile_images/$userId.jpg');
       
-      final uploadTask = storageRef.putData(compressedImageData);
+      final metadata = SettableMetadata(contentType: image_utils.getContentTypeFromPath(imageFile.path));
+      final uploadTask = storageRef.putData(compressedImageData, metadata);
       final snapshot = await uploadTask;
       
       final downloadURL = await snapshot.ref.getDownloadURL();
@@ -298,6 +300,7 @@ class AuthService {
       final downloadURL = await uploadProfileImage(imageFile);
       if (downloadURL != null) {
         await updatePhotoURL(downloadURL);
+        await _auth.currentUser?.reload();
       } else {
         throw Exception('Failed to upload image');
       }

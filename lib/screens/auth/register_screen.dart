@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:forking/services/auth_service.dart';
 import 'package:forking/screens/main_screen.dart';
 import 'package:forking/screens/auth/forgot_password_screen.dart';
+import 'package:forking/utils/haptic_feedback.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -67,12 +68,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _handleRegister() async {
+    _emailController.text = _emailController.text.trim();
+    _nameController.text = _nameController.text.trim();
     setState(() {
       _firebaseEmailError = null;
       _isLoading = true;
     });
-    FocusScope.of(context).unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
     if (!_formKey.currentState!.validate()) {
+      HapticUtils.triggerValidationError();
       setState(() {
         _isLoading = false;
       });
@@ -86,6 +90,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _nameController.text.trim(),
       );
       if (!mounted) return;
+      HapticUtils.triggerSuccess();
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const MainScreen()),
         (route) => false,
@@ -94,12 +99,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       String message = e.toString();
       if (message.contains('email-already-in-use')) {
+        HapticUtils.triggerValidationError();
         setState(() {
           _firebaseEmailError = 'Email already in use';
         });
         // retrigger validation for email field
         _formKey.currentState!.validate();
       } else {
+        HapticUtils.triggerHeavyImpact();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Registration failed. Please try again.')),
         );
@@ -133,7 +140,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         body: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {
-            FocusScope.of(context).unfocus();
+            FocusManager.instance.primaryFocus?.unfocus();
           },
           child: SafeArea(
             child: Center(
@@ -195,14 +202,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         validator: _validatePassword,
                         decoration: InputDecoration(
                           labelText: 'Password',
-                          hintText: 'At least 6 characters',
+                          hintText: 'yourPassword',
                           hintStyle: TextStyle(
                             color: theme.colorScheme.onSurface.withAlpha((0.4 * 255).toInt()),
                           ),
                         ),
                         obscureText: true,
                         onEditingComplete: () {
-                          FocusScope.of(context).unfocus();
+                          FocusManager.instance.primaryFocus?.unfocus();
                           _handleRegister();
                         },
                       ),
@@ -210,6 +217,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: () {
+                            HapticUtils.triggerSelection();
                             Navigator.push(
                               context,
                               MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
@@ -255,6 +263,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const Text('Already have an account? '),
                           TextButton(
                             onPressed: () {
+                              HapticUtils.triggerSelection();
                               Navigator.pop(context);
                             },
                             child: const Text('Login!'),

@@ -87,6 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
       
       final result = await _recipeService.getRecipesForFeed(
         userId: userId,
+        limit: 10,
         dietaryCriteria: selectedDietaryCriteria.isEmpty ? null : selectedDietaryCriteria.toList(),
         minTime: minTime.inMinutes == -1 ? null : minTime,
         maxTime: maxTime.inMinutes == -1 ? null : maxTime,
@@ -157,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
         userId: userId,
         lastDocument: lastDocument,
         lastTimestamp: lastTimestamp, // Use timestamp-based pagination
-        limit: 3,
+        limit: 25,
         dietaryCriteria: selectedDietaryCriteria.isNotEmpty ? selectedDietaryCriteria.toList() : null,
         minTime: minTime.inMinutes != -1 ? minTime : null,
         maxTime: maxTime.inMinutes != -1 ? maxTime : null,
@@ -226,7 +227,7 @@ class _HomeScreenState extends State<HomeScreen> {
       
       RecipePaginationResult result = await _recipeService.getRecipesForFeed(
         userId: userId,
-        limit: 3,
+        limit: 10,
         dietaryCriteria: selectedDietaryCriteria.isNotEmpty ? selectedDietaryCriteria.toList() : null,
         minTime: minTime.inMinutes != -1 ? minTime : null,
         maxTime: maxTime.inMinutes != -1 ? maxTime : null,
@@ -369,7 +370,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           CardSwiper(
                             scale: 1,
-                            numberOfCardsDisplayed: recipesToShow.length == 1 ? 1 : 2,
+                            threshold: 75,
+                            numberOfCardsDisplayed: recipesToShow.length,
                             backCardOffset: const Offset(0, 0),
                             controller: controller,
                             isLoop: false,
@@ -384,20 +386,20 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             cardBuilder: (BuildContext context, int index, int percentThresholdX, int percentThresholdY) {
                               // Trigger haptic feedback when crossing thresholds
-                              if (percentThresholdX > 200 && !_hasTriggeredForkInThreshold) {
+                              if (percentThresholdX > 95 && !_hasTriggeredForkInThreshold) {
                                 _hasTriggeredForkInThreshold = true;
-                                HapticUtils.triggerHeavyImpact();
-                              } else if (percentThresholdX < 150 && percentThresholdX > 0 && _hasTriggeredForkInThreshold) {
+                                HapticUtils.triggerSuccess();
+                              } else if (percentThresholdX < 75 && percentThresholdX > 0 && _hasTriggeredForkInThreshold) {
                                 _hasTriggeredForkInThreshold = false;
-                                HapticUtils.triggerHeavyImpact();
+                                HapticUtils.triggerSuccess();
                               }
                               
-                              if (percentThresholdX < -200 && !_hasTriggeredForkOutThreshold) {
+                              if (percentThresholdX < -95 && !_hasTriggeredForkOutThreshold) {
                                 _hasTriggeredForkOutThreshold = true;
-                                HapticUtils.triggerHeavyImpact();
-                              } else if (percentThresholdX > -150 && percentThresholdX < 0 && _hasTriggeredForkOutThreshold) {
+                                HapticUtils.triggerSuccess();
+                              } else if (percentThresholdX > -75 && percentThresholdX < 0 && _hasTriggeredForkOutThreshold) {
                                 _hasTriggeredForkOutThreshold = false;
-                                HapticUtils.triggerHeavyImpact();
+                                HapticUtils.triggerSuccess();
                               }
                               
                               return Stack(
@@ -408,7 +410,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     constraints: constraints,
                                   ),
                                   // FORK IN overlay (swipe dreapta)
-                                  if (percentThresholdX > 150)
+                                  if (percentThresholdX > 90)
                                     Positioned(
                                       top: 80,
                                       left: 20,
@@ -440,7 +442,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                     ),
                                   // FORK OUT overlay (swipe stânga)
-                                  if (percentThresholdX < -150)
+                                  if (percentThresholdX < -90)
                                     Positioned(
                                       top: 80,
                                       right: 20,
@@ -1049,27 +1051,37 @@ class _HomeScreenState extends State<HomeScreen> {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        spacing: 8,
         children: [
-          Icon(
-            Icons.search,
-            size: 80,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(height: 20),
           Text(
-            'No recipes found',
+            'No recipes for now',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.bold,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Try adjusting your filters',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+          GestureDetector(
+            onTap: () {
+              HapticUtils.triggerSelection();
+              Navigator.pushNamed(context, '/add-recipe');
+            },
+            child: Column(
+              spacing: 12,
+              children: [
+                Text(
+                'It\'s time to add your own recipe',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                Icon(
+                  Icons.add,
+                  size: 48,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ],
             ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),

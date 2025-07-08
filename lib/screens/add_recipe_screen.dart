@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:forking/services/auth_service.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:forking/utils/haptic_feedback.dart';
+import 'package:forking/utils/string_utils.dart';
 
 class AddRecipeScreen extends StatefulWidget {
   final VoidCallback? onRecipeAdded;
@@ -151,7 +152,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   Future<void> _addNewDietaryCriteria(String criteria) async {
     if (criteria.trim().isEmpty) return;
     
-    final cleanCriteria = _normalizeDietaryCriteria(criteria.trim());
+    final cleanCriteria = normalizeDietaryCriteria(criteria.trim());
     if (_selectedDietary.contains(cleanCriteria)) return;
     
     try {
@@ -171,17 +172,6 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         ),
       );
     }
-  }
-
-  /// Normalize dietary criteria to Title Case
-  String _normalizeDietaryCriteria(String criteria) {
-    if (criteria.isEmpty) return criteria;
-    
-    // Convert to Title Case (first letter of each word uppercase)
-    return criteria.split(' ').map((word) {
-      if (word.isEmpty) return word;
-      return word[0].toUpperCase() + word.substring(1).toLowerCase();
-    }).join(' ');
   }
 
   @override
@@ -375,42 +365,42 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
 
   Future<void> _saveRecipe() async {
     if (!_formKey.currentState!.validate()) {
-      _triggerVibration();
+      HapticUtils.triggerValidationError();
       _scrollToInvalidField();
       return;
     }
 
     if (_pickedImage == null) {
       setState(() => _showImageError = true);
-      _triggerVibration();
+      HapticUtils.triggerValidationError();
       _scrollToInvalidField();
       return;
     }
 
     if (_titleController.text.trim().isEmpty) {
       setState(() => _showTitleError = true);
-      _triggerVibration();
+      HapticUtils.triggerValidationError();
       _scrollToInvalidField();
       return;
     }
 
     if (_descriptionController.text.trim().isEmpty) {
       setState(() => _showDescriptionError = true);
-      _triggerVibration();
+      HapticUtils.triggerValidationError();
       _scrollToInvalidField();
       return;
     }
 
     if (_totalHours == 0 && _totalMinutes == 0) {
       setState(() => _showTimeError = true);
-      _triggerVibration();
+      HapticUtils.triggerValidationError();
       _scrollToInvalidField();
       return;
     }
 
     if (_ingredients.isEmpty) {
       setState(() => _showIngredientsError = true);
-      _triggerVibration();
+      HapticUtils.triggerValidationError();
       _scrollToInvalidField();
       return;
     }
@@ -421,7 +411,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
       setState(() {
         _showInstructionErrors.fillRange(0, _showInstructionErrors.length, true);
       });
-      _triggerVibration();
+      HapticUtils.triggerValidationError();
       _scrollToInvalidField();
       return;
     }
@@ -434,7 +424,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         setState(() {
           _showInstructionErrors[i] = true;
         });
-        _triggerVibration();
+        HapticUtils.triggerValidationError();
         _scrollToInvalidField();
         return;
       }
@@ -626,6 +616,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     );
     if (confirmed) {
       resetForm();
+      FocusManager.instance.primaryFocus?.unfocus();
     }
   }
 
@@ -684,11 +675,6 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         );
       }
     });
-  }
-
-  /// Trigger vibration for validation errors
-  Future<void> _triggerVibration() async {
-    await HapticUtils.triggerValidationError();
   }
 
   @override
@@ -750,7 +736,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         body: GestureDetector(
           onTap: () {
             // Close keyboard when tapping outside input fields
-            FocusScope.of(context).unfocus();
+            FocusManager.instance.primaryFocus?.unfocus();
           },
           child: Column(
             children: [
@@ -1241,7 +1227,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                 if (index + 1 < _instructionFocuses.length && mounted && _instructionFocuses[index + 1].canRequestFocus) {
                   FocusScope.of(context).requestFocus(_instructionFocuses[index + 1]);
                 } else {
-                  FocusScope.of(context).unfocus();
+                  FocusManager.instance.primaryFocus?.unfocus();
                 }
               },
             ),
@@ -1438,7 +1424,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
             onSubmitted: (value) {
               final criteria = value.trim();
               if (criteria.isNotEmpty) {
-                final normalizedCriteria = _normalizeDietaryCriteria(criteria);
+                final normalizedCriteria = normalizeDietaryCriteria(criteria);
                 if (!_selectedDietary.contains(normalizedCriteria)) {
                   if (!_localDietary.contains(normalizedCriteria)) {
                     // Add new criteria
@@ -1528,7 +1514,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          _normalizeDietaryCriteria(_dietaryInput.trim()),
+                          normalizeDietaryCriteria(_dietaryInput.trim()),
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Theme.of(context).colorScheme.primary,
                           ),

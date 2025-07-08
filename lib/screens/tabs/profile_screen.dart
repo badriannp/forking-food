@@ -8,8 +8,9 @@ import 'package:image_cropper/image_cropper.dart';
 import 'dart:io';
 import 'package:forking/screens/welcome_screen.dart';
 import 'package:forking/services/recipe_service.dart';
-import 'package:forking/screens/add_recipe_screen.dart';
 import 'package:forking/utils/haptic_feedback.dart';
+import 'package:forking/widgets/profile_avatar.dart';
+import 'package:forking/widgets/recipes_tab.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -35,6 +36,9 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   // Search functionality
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+
+  // Profile image update tracking
+  int _profileUpdateTimestamp = DateTime.now().millisecondsSinceEpoch;
 
   // Filtered recipes based on search with prioritization
   List<Recipe> get _filteredMyRecipes {
@@ -194,6 +198,9 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
   /// Refresh both recipe lists
   Future<void> _refreshRecipes() async {
+    setState(() {
+      _profileUpdateTimestamp = DateTime.now().millisecondsSinceEpoch;
+    });
     await _loadRecipes();
   }
 
@@ -203,7 +210,6 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 100, // Keep original quality for cropping
     );
 
     if (pickedFile != null) {
@@ -230,15 +236,11 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         // Upload cropped image to Firebase Storage and update profile
         await _authService.updateProfileImage(croppedFile);
         
-        final String? userId = _authService.userId;
-        if (userId != null) {
-          // User data is now centralized - no need to update recipes
-        }
-        
         // Refresh the UI
         if (mounted) {
           setState(() {
             _isUpdatingProfileImage = false;
+            _profileUpdateTimestamp = DateTime.now().millisecondsSinceEpoch;
           });
           
           ScaffoldMessenger.of(context).showSnackBar(
@@ -279,7 +281,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             toolbarWidgetColor: Colors.white,
             lockAspectRatio: true,
             hideBottomControls: false,
-            showCropGrid: false, // Hide grid for cleaner look
+            showCropGrid: false,
           ),
           IOSUiSettings(
             title: 'Crop Profile Photo',
@@ -485,7 +487,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
           _saveName();
         }
         // Unfocus any active text field
-        FocusScope.of(context).unfocus();
+        FocusManager.instance.primaryFocus?.unfocus();
       },
       child: Scaffold(
         appBar: AppBar(
@@ -547,32 +549,27 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             },
             body: TabBarView(
             controller: _tabController,
-              children: [
-              // Grid for "My Recipes" with pull-to-refresh
-              RefreshIndicator(
+            children: [
+              RecipeTabView(
                 onRefresh: _refreshRecipes,
-                child: Column(
-                  children: [
-                    // Search bar for My Recipes
-                    _buildSearchBar(),
-                    Expanded(
-                      child: _buildRecipesGrid(isSaved: false),
-                    ),
-                  ],
-                ),
+                searchBarBuilder: _buildSearchBar,
+                isSaved: false,
+                recipes: _filteredMyRecipes,
+                isLoading: _isLoading,
+                context: context,
+                onRecipeAdded: _loadRecipes,
+                onRecipeTapped: (recipe) => _showRecipeCardOverlay(context, recipe),
+
               ),
-              // Grid for "Saved" recipes with pull-to-refresh
-              RefreshIndicator(
+              RecipeTabView(
                 onRefresh: _refreshRecipes,
-                child: Column(
-                  children: [
-                    // Search bar for Saved Recipes
-                    _buildSearchBar(),
-                    Expanded(
-                      child: _buildRecipesGrid(isSaved: true),
-                    ),
-                  ],
-                ),
+                searchBarBuilder: _buildSearchBar,
+                isSaved: true,
+                recipes: _filteredSavedRecipes,
+                isLoading: _isLoading,
+                context: context,
+                onRecipeAdded: _loadRecipes,
+                onRecipeTapped: (recipe) => _showRecipeCardOverlay(context, recipe),
               ),
             ],
           ),
@@ -597,19 +594,11 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
               GestureDetector(
                 behavior: HitTestBehavior.translucent,
                 onTap: _showProfilePhotoOverlay,
-                child: CircleAvatar(
-                radius: 44,
-                backgroundImage: userPhotoURL != null 
-                    ? NetworkImage(userPhotoURL)
-                    : null,
-                child: userPhotoURL == null 
-                    ? Icon(
-                        Icons.person,
-                        size: 44,
-                          color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
-                      )
-                    : null,
-              ),
+                child: ProfileAvatarImage(
+                  key: ValueKey('profile_$_profileUpdateTimestamp'),
+                  imageUrl: userPhotoURL, 
+                  radius: 44
+                ),
               ),
               // Loading overlay
               if (_isUpdatingProfileImage)
@@ -750,7 +739,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                     ],
                   ),
                 ],
-                const SizedBox(height: 16),
+                const SizedBox(height: 4),
                 Row(
                   children: [
                     _buildStatFlex(context, Icons.kitchen, _myRecipes.length.toString(), 'Recipes'),
@@ -767,7 +756,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
   Widget _buildSearchBar() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      margin: const EdgeInsets.only(left: 20, right: 20, top: 8),
       height: 32,
       child: TextField(
         controller: _searchController,
@@ -842,281 +831,6 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         ],
       ),
     );
-  }
-
-  Widget _buildRecipesGrid({bool isSaved = false}) {
-    final recipes = isSaved ? _filteredSavedRecipes : _filteredMyRecipes;
-    final isLoading = _isLoading;
-
-    if (isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-
-    return GridView.builder(
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.all(8.0),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 8.0,
-        mainAxisSpacing: 8.0,
-      ),
-      itemCount: isSaved ? recipes.length : recipes.length + 1, // +1 for add button
-      itemBuilder: (context, index) {
-        // Show add button as first item for My Recipes
-        if (!isSaved && index == 0) {
-          return _buildAddRecipeCard();
-        }
-        
-        // Adjust index for recipes (skip add button)
-        final recipeIndex = isSaved ? index : index - 1;
-        final recipe = recipes[recipeIndex];
-        
-        return GestureDetector(
-          onTap: () {
-            _showRecipeCardOverlay(context, recipe);
-          },
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12.0),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Image.network(
-                  recipe.imageUrl,
-                  fit: BoxFit.cover,
-                ),
-                // Gradient peste imagine pentru text
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withAlpha(179),
-                      ],
-                    ),
-                  ),
-                ),
-                // Fork-in count in top left
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withAlpha(150),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.restaurant,
-                          size: 10,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          '${recipe.forkInCount}',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Timp în dreapta sus
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withAlpha(150),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.access_time,
-                          size: 10,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          _formatDuration(recipe.totalEstimatedTime),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Title and chef name in left bottom
-                Positioned(
-                  left: 8,
-                  right: 8,
-                  bottom: 8,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                    recipe.title,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                      if (isSaved) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            // Chef avatar
-                            if (recipe.creatorPhotoURL != null) ...[
-                              Container(
-                                width: 16,
-                                height: 16,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: 1,
-                                  ),
-                                ),
-                                child: ClipOval(
-                                  child: Image.network(
-                                    recipe.creatorPhotoURL!,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        width: 16,
-                                        height: 16,
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withAlpha(75),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(
-                                          Icons.person,
-                                          size: 10,
-                                          color: Colors.white,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                            ] else ...[
-                              Container(
-                                width: 16,
-                                height: 16,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withAlpha(75),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.person,
-                                  size: 10,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                            ],
-                            // Chef name
-                            Expanded(
-                              child: Text(
-                                recipe.creatorName ?? 'Unknown Chef',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Colors.white.withAlpha(200),
-                                  fontSize: 11,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildAddRecipeCard() {
-    return GestureDetector(
-      onTap: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AddRecipeScreen(
-              onRecipeAdded: () {
-                _loadRecipes();
-                Navigator.pop(context);
-              },
-            ),
-          ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12.0),
-          color: Colors.grey[50],
-          border: Border.all(
-            color: Colors.grey[300]!,
-            width: 1,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.add_rounded,
-              size: 64,
-              color: Colors.grey[500],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Add Recipe',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Format time duration for display
-  String _formatDuration(Duration duration) {
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes % 60;
-    
-    if (hours > 0 && minutes > 0) {
-      return '${hours}h ${minutes}min';
-    } else if (hours > 0) {
-      return '${hours}h';
-    } else {
-      return '${minutes}min';
-    }
   }
 
   void _showRecipeCardOverlay(BuildContext context, Recipe recipe) {

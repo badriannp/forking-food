@@ -46,7 +46,6 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     // Wait for initialization
     await widget.initialization();
     
-    // Navigate directly without fade out
     if (mounted) {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
@@ -54,7 +53,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
-          transitionDuration: const Duration(milliseconds: 800),
+          transitionDuration: const Duration(milliseconds: 400),
         ),
       );
     }
@@ -103,7 +102,6 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // App Name
                     Text(
                       'Forking',
                       style: Theme.of(context).textTheme.headlineLarge?.copyWith(
@@ -121,9 +119,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       ),
                     ),
                     const SizedBox(height: 8),
-                    // Tagline
                     Text(
-                      'Discover Amazing Recipes',
+                      'Food. Recipes. Ideas. Cooking...',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: Colors.white.withAlpha(230),
                         fontSize: 16,
@@ -139,10 +136,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                     const SizedBox(height: 48),
                     // Loading indicator
                     const SizedBox(
-                      width: 24,
-                      height: 24,
+                      width: 32,
+                      height: 32,
                       child: CircularProgressIndicator(
-                        strokeWidth: 2,
+                        strokeWidth: 4,
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     ),

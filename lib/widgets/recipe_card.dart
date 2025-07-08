@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:forking/models/recipe.dart';
+import 'package:forking/widgets/creator_avatar.dart';
 
 class RecipeCard extends StatelessWidget {
   final Recipe recipe;
@@ -81,6 +82,7 @@ class RecipeCard extends StatelessWidget {
                     right: 16,
                     bottom: 16,
                     child: Column(
+                      spacing: 8,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Title and likes row
@@ -88,11 +90,11 @@ class RecipeCard extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                          recipe.title,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
+                                recipe.title,
+                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                             // Fork-in count (likes)
@@ -123,7 +125,6 @@ class RecipeCard extends StatelessWidget {
                             // ),
                           ],
                         ),
-                        const SizedBox(height: 8),
                         // Tags
                         if (recipe.tags.isNotEmpty)
                           Wrap(
@@ -144,49 +145,16 @@ class RecipeCard extends StatelessWidget {
                               ),
                             )).toList(),
                           ),
-                        if (recipe.tags.isNotEmpty) const SizedBox(height: 8),
                         // Creator name and time
                         Row(
+                          spacing: 6,
                           children: [
-                            // Chef avatar
-                            if (recipe.creatorPhotoURL != null) ...[
-                              Container(
-                                width: 16,
-                                height: 16,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white.withAlpha(220),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: ClipOval(
-                                  child: Image.network(
-                                    recipe.creatorPhotoURL!,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Icon(
-                                        Icons.person_outline,
-                                        size: 16,
-                                        color: Colors.white.withAlpha(220),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ] else ...[
-                            Icon(
-                              Icons.person_outline,
-                              size: 16,
-                              color: Colors.white.withAlpha(220),
-                            ),
-                            ],
-                            const SizedBox(width: 4),
+                            CreatorAvatar(imageUrl: recipe.creatorPhotoURL!, size: 20),
                             Text(
                               recipe.creatorName ?? 'Unknown Chef',
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: Colors.white.withAlpha(200),
-                                fontSize: 11,
+                                fontSize: 12,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,

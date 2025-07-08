@@ -6,6 +6,7 @@ import 'package:forking/screens/auth/login_screen.dart';
 import 'package:forking/screens/main_screen.dart';
 import 'package:forking/services/auth_service.dart';
 import 'package:flutter/services.dart';
+import 'package:forking/widgets/login_button.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -15,12 +16,6 @@ class WelcomeScreen extends StatefulWidget {
 
 class _WelcomeScreenState extends State<WelcomeScreen> {
   bool _isLoading = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
-  }
 
   Future<void> _signInWithGoogle() async {
     setState(() {
@@ -148,7 +143,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             ),
                             // SizedBox(height: 4),
                             Text(
-                                'WE ARE WHAT WE EAT',
+                                'WE ARE WHAT\nWE EAT',
                                 textAlign: TextAlign.center,
                                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                   fontWeight: FontWeight.bold,
@@ -157,9 +152,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                   letterSpacing: 0.2,
                               ),
                             ),
-                            const SizedBox(height: 96),
+                            const SizedBox(height: 100),
                             
-                            _LoginButton(
+                            LoginButton(
                               icon: _isLoading 
                                   ? SizedBox(
                                       height: 20,
@@ -181,8 +176,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                               textColor: Theme.of(context).colorScheme.onSurface,
                               onPressed: _isLoading ? null : () => _signInWithGoogle(),
                             ),
-                            const SizedBox(height: 8),
-                            // _LoginButton(
+                            const SizedBox(height: 10),
+                            // LoginButton(
                             //   icon: _isLoading 
                             //       ? SizedBox(
                             //           height: 20,
@@ -207,13 +202,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             // const SizedBox(height: 16),
                             Row(
                               children: [
-                                Expanded(child: Divider(thickness: 1, indent: 12, color: Theme.of(context).colorScheme.onPrimary.withAlpha(180), endIndent: 12)),
-                                Text('or', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onPrimary.withAlpha(180),)),
-                                Expanded(child: Divider(thickness: 1, indent: 12, color: Theme.of(context).colorScheme.onPrimary.withAlpha(180), endIndent: 12)),
+                                Expanded(child: Divider(thickness: .75, indent: 12, color: Theme.of(context).colorScheme.onPrimary.withAlpha(200), endIndent: 12)),
+                                Text('or', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onPrimary.withAlpha(200),)),
+                                Expanded(child: Divider(thickness: .75, indent: 12, color: Theme.of(context).colorScheme.onPrimary.withAlpha(200), endIndent: 12)),
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            _LoginButton(
+                            const SizedBox(height: 10),
+                            LoginButton(
                               icon: Icon(Icons.email, color: Theme.of(context).colorScheme.onSurface.withAlpha(220)),
                               text: 'Log in using your email',
                               color: Theme.of(context).colorScheme.surface,
@@ -225,7 +220,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 );
                               },
                             ),
-                            const SizedBox(height: 32),
+                            const SizedBox(height: 24),
                             RichText(
                               textAlign: TextAlign.center,
                               text: TextSpan(
@@ -279,39 +274,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _LoginButton extends StatelessWidget {
-  final Widget icon;
-  final String text;
-  final Color color;
-  final Color textColor;
-  final VoidCallback? onPressed;
-
-  const _LoginButton({
-    required this.icon,
-    required this.text,
-    required this.color,
-    required this.textColor,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        icon: icon,
-        label: Text(text, style: TextStyle(color: textColor, fontSize: 16, letterSpacing: -0.1)),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        ),
-        onPressed: onPressed,
       ),
     );
   }

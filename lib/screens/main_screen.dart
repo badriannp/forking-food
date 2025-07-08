@@ -37,7 +37,7 @@ class _MainScreenState extends State<MainScreen> {
 
   void _onItemTapped(int index) {
     HapticUtils.triggerSelection();
-    FocusScope.of(context).unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
     PageStorage.of(context).writeState(context, index, identifier: _storageKey);
     setState(() => _selectedIndex = index);
   }

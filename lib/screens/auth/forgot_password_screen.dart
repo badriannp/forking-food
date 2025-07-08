@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:forking/utils/haptic_feedback.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -30,8 +31,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Future<void> _handleSend() async {
-    if (!_formKey.currentState!.validate()) return;
+    _emailController.text = _emailController.text.trim();
+    if (!_formKey.currentState!.validate()) {
+      HapticUtils.triggerValidationError();
+      return;
+    }
     await Future.delayed(const Duration(seconds: 1));
+    HapticUtils.triggerSelection();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('If an account exists for this email, you will receive a password reset link.')),
@@ -59,7 +65,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         body: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {
-            FocusScope.of(context).unfocus();
+            FocusManager.instance.primaryFocus?.unfocus();
           },
           child: SafeArea(
             child: Center(
@@ -98,7 +104,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           ),
                         ),
                         onEditingComplete: () {
-                          FocusScope.of(context).unfocus();
+                          FocusManager.instance.primaryFocus?.unfocus();
                           _handleSend();
                         },
                       ),
@@ -106,7 +112,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: _handleSend,
+                          onPressed: () {
+                            FocusManager.instance.primaryFocus?.unfocus();
+                            // HapticUtils.triggerSelection();
+                            _handleSend();
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: theme.colorScheme.primary,
                             foregroundColor: theme.colorScheme.onPrimary,

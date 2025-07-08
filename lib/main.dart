@@ -90,7 +90,7 @@ class AppEntryPoint extends StatelessWidget {
     // Initialize Firebase
     await Firebase.initializeApp();
     
-    await Future.delayed(const Duration(milliseconds: 2000));
+    await Future.delayed(const Duration(milliseconds: 1400));
   }
 
   @override
