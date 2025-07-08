@@ -23,7 +23,7 @@ class _RecipeTabViewState extends State<RecipeTabView>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // important!
+    super.build(context);
     return RefreshIndicator(
       onRefresh: widget.onRefresh,
       child: Column(

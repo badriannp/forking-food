@@ -65,7 +65,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         body: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {
-            FocusScope.of(context).unfocus();
+            FocusManager.instance.primaryFocus?.unfocus();
           },
           child: SafeArea(
             child: Center(
@@ -104,7 +104,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           ),
                         ),
                         onEditingComplete: () {
-                          FocusScope.of(context).unfocus();
+                          FocusManager.instance.primaryFocus?.unfocus();
                           _handleSend();
                         },
                       ),
@@ -113,7 +113,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         width: double.infinity,
                         child: ElevatedButton(
                           onPressed: () {
-                            FocusScope.of(context).unfocus();
+                            FocusManager.instance.primaryFocus?.unfocus();
                             // HapticUtils.triggerSelection();
                             _handleSend();
                           },

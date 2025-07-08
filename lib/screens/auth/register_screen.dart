@@ -74,7 +74,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _firebaseEmailError = null;
       _isLoading = true;
     });
-    FocusScope.of(context).unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
     if (!_formKey.currentState!.validate()) {
       HapticUtils.triggerValidationError();
       setState(() {
@@ -140,7 +140,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         body: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {
-            FocusScope.of(context).unfocus();
+            FocusManager.instance.primaryFocus?.unfocus();
           },
           child: SafeArea(
             child: Center(
@@ -209,7 +209,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                         obscureText: true,
                         onEditingComplete: () {
-                          FocusScope.of(context).unfocus();
+                          FocusManager.instance.primaryFocus?.unfocus();
                           _handleRegister();
                         },
                       ),

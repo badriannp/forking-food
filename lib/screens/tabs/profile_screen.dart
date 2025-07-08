@@ -8,13 +8,11 @@ import 'package:image_cropper/image_cropper.dart';
 import 'dart:io';
 import 'package:forking/screens/welcome_screen.dart';
 import 'package:forking/services/recipe_service.dart';
-import 'package:forking/screens/add_recipe_screen.dart';
 import 'package:forking/utils/haptic_feedback.dart';
-import 'package:forking/utils/image_utils.dart';
 import 'package:forking/widgets/profile_avatar.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:forking/widgets/recipes_tab.dart';
-import 'package:forking/widgets/creator_avatar.dart';
+import 'package:forking/widgets/recipes_grid.dart';
+import 'package:forking/utils/string_utils.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -42,7 +40,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   String _searchQuery = '';
 
   // Profile image update tracking
-  int _profileImageUpdateTimestamp = 0;
+  int _profileUpdateTimestamp = 0;
 
   // Filtered recipes based on search with prioritization
   List<Recipe> get _filteredMyRecipes {
@@ -241,7 +239,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         if (mounted) {
           setState(() {
             _isUpdatingProfileImage = false;
-            _profileImageUpdateTimestamp = _profileImageUpdateTimestamp == 0 ? 1 : 0;
+            _profileUpdateTimestamp = _profileUpdateTimestamp == 0 ? 1 : 0;
           });
           
           ScaffoldMessenger.of(context).showSnackBar(
@@ -488,7 +486,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
           _saveName();
         }
         // Unfocus any active text field
-        FocusScope.of(context).unfocus();
+        FocusManager.instance.primaryFocus?.unfocus();
       },
       child: Scaffold(
         appBar: AppBar(
@@ -554,12 +552,12 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
               RecipeTabView(
                 onRefresh: _refreshRecipes,
                 searchBarBuilder: _buildSearchBar,
-                gridBuilder: () => _buildRecipesGrid(isSaved: false),
+                gridBuilder: () => RecipesGrid(isSaved: false, recipes: _filteredMyRecipes, isLoading: _isLoading, context: context, onRecipeAdded: _loadRecipes, onRecipeTapped: (recipe) => _showRecipeCardOverlay(context, recipe), formatDuration: formatDuration),
               ),
               RecipeTabView(
                 onRefresh: _refreshRecipes,
                 searchBarBuilder: _buildSearchBar,
-                gridBuilder: () => _buildRecipesGrid(isSaved: true),
+                gridBuilder: () => RecipesGrid(isSaved: true, recipes: _filteredSavedRecipes, isLoading: _isLoading, context: context, onRecipeAdded: _loadRecipes, onRecipeTapped: (recipe) => _showRecipeCardOverlay(context, recipe), formatDuration: formatDuration),
               ),
             ],
           ),
@@ -585,7 +583,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 behavior: HitTestBehavior.translucent,
                 onTap: _showProfilePhotoOverlay,
                 child: ProfileAvatarImage(
-                  key: ValueKey('profile_$_profileImageUpdateTimestamp'),
+                  key: ValueKey('profile_$_profileUpdateTimestamp'),
                   imageUrl: userPhotoURL, 
                   radius: 44
                 ),
@@ -821,283 +819,6 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         ],
       ),
     );
-  }
-
-  Widget _buildRecipesGrid({bool isSaved = false}) {
-    final recipes = isSaved ? _filteredSavedRecipes : _filteredMyRecipes;
-    final isLoading = _isLoading;
-
-    if (isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-
-    if (recipes.isEmpty && !isLoading && isSaved) {
-      return SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: SizedBox(
-          height: MediaQuery.of(context).size.height * 0.4,
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.restaurant,
-                    size: 64,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Fork-in recipes to save them\nin your collection!',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return GridView.builder(
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.all(8.0),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 8.0,
-        mainAxisSpacing: 8.0,
-      ),
-      itemCount: isSaved ? recipes.length : recipes.length + 1, // +1 for add button
-      itemBuilder: (context, index) {
-        // Show add button as first item for My Recipes
-        if (!isSaved && index == 0) {
-          return _buildAddRecipeCard();
-        }
-        
-        // Adjust index for recipes (skip add button)
-        final recipeIndex = isSaved ? index : index - 1;
-        final recipe = recipes[recipeIndex];
-        
-        return GestureDetector(
-          onTap: () {
-            _showRecipeCardOverlay(context, recipe);
-          },
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12.0),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                CachedNetworkImage(
-                  fadeInDuration: Duration.zero,
-                  imageUrl: getResizedImageUrl(originalUrl: recipe.imageUrl, size: 600),
-                  fit: BoxFit.cover,
-                  errorWidget: (context, url, error) {
-                    return CachedNetworkImage(
-                      fadeInDuration: Duration.zero,
-                      imageUrl: recipe.imageUrl,
-                      fit: BoxFit.cover,
-                      errorWidget: (context, url, error) => Container(
-                        color: Colors.grey.shade200,
-                        child: const Icon(Icons.image_not_supported),
-                      ),
-                    );
-                  },
-                ),
-                // Gradient peste imagine pentru text
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withAlpha(179),
-                      ],
-                    ),
-                  ),
-                ),
-                // Fork-in count in top left
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withAlpha(150),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.restaurant,
-                          size: 10,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          '${recipe.forkInCount}',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Time in top right
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withAlpha(150),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.access_time,
-                          size: 10,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          _formatDuration(recipe.totalEstimatedTime),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Title and chef name in left bottom
-                Positioned(
-                  left: 8,
-                  right: 8,
-                  bottom: 8,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        recipe.title,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (isSaved) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            // Chef avatar
-                            CreatorAvatar(
-                              imageUrl: recipe.creatorPhotoURL,
-                              size: 16,
-                              borderColor: Colors.white,
-                              fallbackColor: Colors.white.withAlpha(75),
-                            ),
-                            const SizedBox(width: 4),
-                            // Chef name
-                            Expanded(
-                              child: Text(
-                                recipe.creatorName ?? 'Unknown Chef',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Colors.white.withAlpha(200),
-                                  fontSize: 11,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildAddRecipeCard() {
-    return GestureDetector(
-      onTap: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AddRecipeScreen(
-              onRecipeAdded: () {
-                _loadRecipes();
-                Navigator.pop(context);
-              },
-            ),
-          ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12.0),
-          color: Colors.grey[50],
-          border: Border.all(
-            color: Theme.of(context).colorScheme.primary,
-            width: 1,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.add_rounded,
-              size: 64,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Add Recipe',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Format time duration for display
-  String _formatDuration(Duration duration) {
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes % 60;
-    
-    if (hours > 0 && minutes > 0) {
-      return '${hours}h ${minutes}min';
-    } else if (hours > 0) {
-      return '${hours}h';
-    } else {
-      return '${minutes}min';
-    }
   }
 
   void _showRecipeCardOverlay(BuildContext context, Recipe recipe) {

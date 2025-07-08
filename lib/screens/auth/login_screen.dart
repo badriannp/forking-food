@@ -56,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _firebaseError = null;
       _isLoading = true;
     });
-    FocusScope.of(context).unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
     if (!_formKey.currentState!.validate()) {
       HapticUtils.triggerValidationError();
       setState(() {
@@ -115,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
         body: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {
-            FocusScope.of(context).unfocus();
+            FocusManager.instance.primaryFocus?.unfocus();
           },
           child: SafeArea(
             child: Center(
@@ -169,7 +169,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         obscureText: true,
                         onEditingComplete: () {
-                          FocusScope.of(context).unfocus();
+                          FocusManager.instance.primaryFocus?.unfocus();
                           _handleLogin();
                         },
                       ),
