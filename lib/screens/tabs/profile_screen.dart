@@ -198,6 +198,9 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
   /// Refresh both recipe lists
   Future<void> _refreshRecipes() async {
+    setState(() {
+      _profileUpdateTimestamp = DateTime.now().millisecondsSinceEpoch;
+    });
     await _loadRecipes();
   }
 

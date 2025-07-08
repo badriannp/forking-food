@@ -300,6 +300,7 @@ class AuthService {
       final downloadURL = await uploadProfileImage(imageFile);
       if (downloadURL != null) {
         await updatePhotoURL(downloadURL);
+        await _auth.currentUser?.reload();
       } else {
         throw Exception('Failed to upload image');
       }
