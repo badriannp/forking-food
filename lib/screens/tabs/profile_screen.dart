@@ -11,8 +11,6 @@ import 'package:forking/services/recipe_service.dart';
 import 'package:forking/utils/haptic_feedback.dart';
 import 'package:forking/widgets/profile_avatar.dart';
 import 'package:forking/widgets/recipes_tab.dart';
-import 'package:forking/widgets/recipes_grid.dart';
-import 'package:forking/utils/string_utils.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -40,7 +38,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   String _searchQuery = '';
 
   // Profile image update tracking
-  int _profileUpdateTimestamp = 0;
+  int _profileUpdateTimestamp = DateTime.now().millisecondsSinceEpoch;
 
   // Filtered recipes based on search with prioritization
   List<Recipe> get _filteredMyRecipes {
@@ -239,7 +237,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         if (mounted) {
           setState(() {
             _isUpdatingProfileImage = false;
-            _profileUpdateTimestamp = _profileUpdateTimestamp == 0 ? 1 : 0;
+            _profileUpdateTimestamp = DateTime.now().millisecondsSinceEpoch;
           });
           
           ScaffoldMessenger.of(context).showSnackBar(
@@ -280,7 +278,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             toolbarWidgetColor: Colors.white,
             lockAspectRatio: true,
             hideBottomControls: false,
-            showCropGrid: false, // Hide grid for cleaner look
+            showCropGrid: false,
           ),
           IOSUiSettings(
             title: 'Crop Profile Photo',
